@@ -188,7 +188,7 @@ interface AppContextValue {
   getNetWorth: () => number;
 }
 
-const AppContext = createContext<AppContextValue | null>(null);
+export const AppContext = createContext<AppContextValue | null>(null);
 
 const STORAGE_KEYS = {
   accounts: "@paisaweb/accounts",

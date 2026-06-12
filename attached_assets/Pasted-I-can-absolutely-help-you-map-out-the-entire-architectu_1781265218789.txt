@@ -1,0 +1,255 @@
+I can absolutely help you map out the entire architecture and feature set of your application. This document is structured specifically to serve as a comprehensive blueprint. If you feed this into an AI agent like Replit, it will provide the exact specifications needed to recreate the app's structure, logic, and UI accurately.
+
+Here is the complete feature and architecture documentation for **PaisaWeb**.
+
+---
+
+## 1. App Overview & Architecture
+
+**PaisaWeb** is a fully offline, local-first personal finance and wealth management application. It handles daily expense tracking, budgeting, recurring commitments, investment tracking, and goal planning.
+
+* 
+**Tech Stack:** React Native, Expo (using Expo Router for navigation), TypeScript.
+
+
+* 
+**State Management:** React Context API (`AppContext.tsx`) handling all global state, form states, and modal visibility.
+
+
+* 
+**Persistence:** Local storage using `@react-native-async-storage/async-storage`.
+
+
+* 
+**UI/Styling:** Custom theme engine using `useAppColors` hook, fully supporting Light and Dark modes with a specific color palette (income, expense, transfer, warning, etc.).
+
+
+* 
+**Charts:** Custom SVG-based charts using `react-native-svg` (Donut Chart, Line Chart).
+
+
+
+---
+
+## 2. Data Models (Entities)
+
+The app operates on several core data models, all strictly typed in TypeScript:
+
+* **Account:** Tracks Banks, Credit Cards, Cash Wallets, and Investments. Includes `balance`, `bankLimit` and `selfLimit` (for CCs), and styling properties (`icon`, `color`).
+
+
+* **Transaction:** Tracks `INCOME`, `EXPENSE`, or `TRANSFER`. Links to a `sourceId` and optionally a `destId` (for transfers). Includes `category`, `amount`, and `date`.
+
+
+* **Budget:** Monthly limits tied to a specific `category` and `month` (e.g., "2026-05"). Includes visual properties (`color`, `icon`).
+
+
+* **Commitment:** Recurring bills, subscriptions, or SIPs. Includes `isPaid`, `isSkipped`, and can link to a `destId` (investment) or `linkedBudgetId`.
+
+
+* 
+**Investment:** Tracks Mutual Funds, PPF, LIC, FDs, etc. Includes `monthlyContribution`, `frequency`, `totalInvested`, `currentValue`, `treatAsExpense` (for policies like LIC), and auto-scheduling properties (`nextPaymentDate`, `skippedCount`).
+
+
+* 
+**Goal:** Financial targets linked to a specific `accountId`, tracking `target`, `current`, and `deadline`.
+
+
+* 
+**MonthEndTask:** A simple boolean checklist item for monthly financial closure.
+
+
+
+---
+
+## 3. Screen-by-Screen Breakdown
+
+The app utilizes a bottom tab navigation structure (`(tabs)/_layout.tsx`) with five main screens.
+
+### I. Dashboard Screen (`index.tsx`)
+
+The central hub for a quick financial overview.
+
+* 
+**Header:** Displays current date, app title, Reset button (wipes AsyncStorage), and Dark/Light mode toggle.
+
+
+* 
+**Net Worth Card:** Calculates total balance of all accounts + current value of all investments.
+
+
+* 
+**Stats Row:** Three mini-cards showing month-to-date Income, Expenses, and Saved (Income - Expenses).
+
+
+* 
+**Savings vs Spending Chart:** A 5-month historical line chart (`SavingsLineChart`) comparing spent vs. saved amounts.
+
+
+* 
+**Expense Donut Chart:** A breakdown of current month expenses categorized by Budget.
+
+
+* **Upcoming Commitments Widget:** Lists the next 4 pending commitments. Includes quick actions to "Skip" or "Mark Paid".
+
+
+* 
+**Recent Transactions Widget:** Shows the 6 most recent transactions for the current month.
+
+
+* 
+**Floating Action Button (FAB):** Quick-add button for new transactions.
+
+
+
+### II. Accounts Screen (`accounts.tsx`)
+
+Manages liquidity and debt.
+
+* **Summary Cards:**
+* 
+*Liquid Cash:* Sum of Bank and Cash Wallet balances.
+
+
+* 
+*CC Balance:* Sum of all Credit Card balances (shows as debt/expense color if negative).
+
+
+* 
+*Net Worth:* Re-displays overall net worth.
+
+
+
+
+* 
+**Account List:** Grouped dynamically by type (Bank, Credit Card, Wallet, Investment).
+
+
+* **Credit Card Logic:** Displays a custom progress bar showing limit utilization (Used vs. Limit). Changes color to warning (>50%) or expense (>80%) based on utilization.
+
+
+
+### III. Budget Screen (`budget.tsx`)
+
+Zero-based budgeting planner.
+
+* 
+**Month Navigator:** Allows switching between months to view historical or future budgets.
+
+
+* 
+**True Spendable Calculator (Crucial Logic):** * Formula: `Month Income - Month Investments (non-expense) - Fixed Commitments (not linked to a budget)`.
+
+
+* Displays "Unallocated Cash" or "Over Budgeted" based on `True Spendable - Total Budgeted`.
+
+
+
+
+* 
+**Budget Summary:** Shows Total Budgeted, Total Spent, and Total Remaining.
+
+
+* **Envelope Cards:** Individual budget categories showing spent vs. limit with a visual progress bar. Highlights in red if exceeded.
+
+
+* 
+**Unbudgeted Warning:** Automatically detects and sums expenses that do not match any existing budget category.
+
+
+* 
+**Copy Tool:** Utility to copy budget categories and limits from a previous month to the current one.
+
+
+
+### IV. Wealth Screen (`wealth.tsx`)
+
+Tracks long-term portfolio growth and goals.
+
+* 
+**Portfolio Overview:** Shows Current Value, Total Returns (Amount & %), Total Invested, Monthly SIP commitment, and Average Goal Completion %.
+
+
+* **Goals List:** Cards showing target amount, current amount, linked account, and a progress bar. Calculates days left and required monthly savings to hit the goal.
+
+
+* **Investments List:** Cards showing investment details. Includes custom badges for types (MF, LIC), warnings for skipped premiums, and calculates remaining payments for fixed-term investments (like FDs/LICs).
+
+
+
+### V. Month End Screen (`monthend.tsx`)
+
+A financial closure routine.
+
+* 
+**Progress Ring:** A circular SVG progress bar showing completion of the month-end checklist.
+
+
+* 
+**Month Summary:** A final tally of Income, Expenses, Net Savings, and Savings Rate %.
+
+
+* 
+**Alerts System:** Warns the user if there are unpaid commitments or budget categories over their limit.
+
+
+* 
+**Checklist:** A functional to-do list (add, edit, toggle, delete) for custom month-end tasks (e.g., "Pay CC bills", "Reconcile cash").
+
+
+
+---
+
+## 4. Core Financial Algorithms (Business Logic)
+
+To ensure accurate financial data, the app uses strict calculation rules:
+
+* 
+**Double-Entry Accounting:** When a transaction is added, updated, or deleted (`applyTransactionToAccounts`, `applyTransactionToInvestments`), the app mathematically adjusts the `sourceId` and `destId` account balances.
+
+
+* 
+*Expense:* Deducts from source.
+
+
+* 
+*Income:* Adds to source.
+
+
+* 
+*Transfer:* Deducts from source, Adds to destination.
+
+
+
+
+* **Auto-Scheduler Engine:** Runs on app load. It checks `investments` for `autoSchedule: true`. If the `nextPaymentDate` falls in the current month, it automatically creates a pending `Commitment` record.
+
+
+* **Commitment Skipped Logic:** If a user "Skips" a commitment linked to an investment marked `treatAsExpense` (like a life insurance premium), it increments `skippedCount`. The auto-scheduler will then multiply the next premium amount by `1 + skippedCount` to demand the arrears.
+
+
+* 
+**Commitment Payment Logic:** Marking a commitment "Paid" automatically generates a standard `Transaction` in the background and updates the corresponding balances.
+
+
+
+---
+
+## 5. Global Modals Architecture
+
+Instead of placing modals inside individual screens, the app uses a single `<GlobalModals />` component mounted at the root layout.
+
+* 
+**State:** Controlled entirely via `AppContext` (e.g., `isTxModalOpen`, `txForm`, `editingTx`).
+
+
+* 
+**Forms Included:** Transaction Modal, Account Modal, Budget Modal, Commitment Modal, Goal Modal, Investment Modal, Task Modal.
+
+
+* 
+**UI Components:** Modals use custom built UI pieces: `StyledInput`, `SelectPicker` (a custom bottom-sheet dropdown), and `ColorPicker`.
+
+
+* 
+**Keyboard Handling:** Uses `KeyboardAwareScrollViewCompat` to prevent the keyboard from hiding input fields.

@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "ts_6o-2RVD0QYa9McjCei"
+uri = "file://artifacts/paisa-web/assets/images/icon.png"
+type = "image"
+title = "paisa web finance app icon"

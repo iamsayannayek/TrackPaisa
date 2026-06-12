@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "PaisaWeb"
+version = "1.0.0"
+id = "artifacts/paisa-web"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 21606
+
+[services.development]
+run = "pnpm --filter @workspace/paisa-web run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/paisa-web", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/paisa-web", "run", "serve" ]
+
+[services.env]
+PORT = "21606"
+BASE_PATH = "/"

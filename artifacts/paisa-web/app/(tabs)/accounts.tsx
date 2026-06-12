@@ -1,160 +1,419 @@
 import React, { useMemo } from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, Alert } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  Platform,
+  ScrollView,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
-import { useApp, Account, AccountType } from "@/context/AppContext";
-import { useColors } from "@/hooks/useColors";
-import { AmountText, fmt } from "@/components/ui/AmountText";
-import { ProgressBar } from "@/components/ui/ProgressBar";
+import { useApp, Account } from "@/context/AppContext";
+import { useAppColors } from "@/hooks/useAppColors";
 
-const TYPE_ORDER: AccountType[] = ["BANK", "CASH_WALLET", "CREDIT_CARD", "INVESTMENT"];
-const TYPE_LABEL: Record<AccountType, string> = {
-  BANK: "Bank Accounts",
-  CREDIT_CARD: "Credit Cards",
-  CASH_WALLET: "Cash & Wallets",
-  INVESTMENT: "Investment Accounts",
-};
+const fmt = (n: number) => `₹${Math.abs(n).toLocaleString("en-IN")}`;
 
-function AccountCard({ acc, onEdit, onDelete }: { acc: Account; onEdit: () => void; onDelete: () => void }) {
-  const c = useColors();
+function AccountCard({ acc, onPress }: { acc: Account; onPress: () => void }) {
+  const c = useAppColors();
   const isCreditCard = acc.type === "CREDIT_CARD";
-  const limit = acc.bankLimit || acc.selfLimit || 0;
+  const limit = acc.selfLimit || acc.bankLimit || 0;
   const used = isCreditCard ? Math.abs(acc.balance) : 0;
-  const usedPct = limit > 0 ? Math.min(used / limit, 1) : 0;
-  const barColor = usedPct > 0.8 ? c.expense : usedPct > 0.5 ? c.warning : c.income;
+  const usedPct = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
+
+  const typeLabel =
+    {
+      BANK: "Bank Account",
+      CREDIT_CARD: "Credit Card",
+      CASH_WALLET: "Cash Wallet",
+      INVESTMENT: "Investment",
+    }[acc.type] ?? acc.type;
+
+  const balanceColor = isCreditCard
+    ? usedPct > 80
+      ? c.expense
+      : usedPct > 50
+        ? (c.warning ?? "#f59e0b")
+        : c.income
+    : acc.balance < 0
+      ? c.expense
+      : c.text;
 
   return (
-    <View style={[styles.accountCard, { backgroundColor: c.card }]}>
-      <View style={[styles.accentBar, { backgroundColor: acc.color }]} />
-      <View style={{ flex: 1 }}>
-        <View style={styles.rowBetween}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: c.foreground, fontSize: 15, fontWeight: "700" }} numberOfLines={1}>{acc.name}</Text>
-            <Text style={{ color: c.mutedForeground, fontSize: 11, marginTop: 2 }}>{TYPE_LABEL[acc.type]}</Text>
-          </View>
-          <View style={{ alignItems: "flex-end" }}>
-            <AmountText amount={acc.balance} style={{ fontSize: 16, fontWeight: "800" }} colored incomeColor={c.foreground} expenseColor={c.expense} />
-          </View>
-        </View>
-        {isCreditCard && limit > 0 && (
-          <View style={{ marginTop: 10, gap: 4 }}>
-            <ProgressBar progress={usedPct} color={barColor} backgroundColor={c.muted} height={5} />
-            <View style={styles.rowBetween}>
-              <Text style={{ color: c.mutedForeground, fontSize: 10 }}>Used {fmt(used)}</Text>
-              <Text style={{ color: c.mutedForeground, fontSize: 10 }}>Limit {fmt(limit)}</Text>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.8}
+      style={{
+        backgroundColor: c.card,
+        borderRadius: c.radius,
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: c.cardBorder,
+        borderLeftWidth: 4,
+        borderLeftColor: acc.color ?? c.primary,
+      }}
+    >
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 8,
+        }}
+      >
+        <View style={{ flex: 1 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 4,
+            }}
+          >
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: (acc.color ?? c.primary) + "22",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Feather
+                name={
+                  acc.icon === "CreditCard"
+                    ? "credit-card"
+                    : acc.icon === "Wallet"
+                      ? "pocket"
+                      : "archive"
+                }
+                size={16}
+                color={acc.color ?? c.primary}
+              />
+            </View>
+            <View>
+              <Text style={{ color: c.text, fontSize: 15, fontWeight: "700" }}>
+                {acc.name}
+              </Text>
+              <Text style={{ color: c.textSecondary, fontSize: 11 }}>
+                {typeLabel}
+              </Text>
             </View>
           </View>
-        )}
+          <Text
+            style={{ color: c.textTertiary, fontSize: 12 }}
+            numberOfLines={1}
+          >
+            {acc.purpose}
+          </Text>
+        </View>
+        <View style={{ alignItems: "flex-end" }}>
+          <Text
+            style={{ color: balanceColor, fontSize: 18, fontWeight: "800" }}
+          >
+            {isCreditCard && acc.balance < 0 ? "−" : ""}
+            {fmt(acc.balance)}
+          </Text>
+          <Text style={{ color: c.textSecondary, fontSize: 11 }}>Balance</Text>
+        </View>
       </View>
-      <View style={{ gap: 6, marginLeft: 8 }}>
-        <TouchableOpacity onPress={onEdit} style={[styles.iconBtn, { backgroundColor: c.secondary }]}>
-          <Feather name="edit-2" size={13} color={c.mutedForeground} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={onDelete} style={[styles.iconBtn, { backgroundColor: c.destructive + "15" }]}>
-          <Feather name="trash-2" size={13} color={c.destructive} />
-        </TouchableOpacity>
-      </View>
-    </View>
+
+      {isCreditCard && limit > 0 && (
+        <View style={{ marginTop: 8 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginBottom: 4,
+            }}
+          >
+            <Text style={{ color: c.textSecondary, fontSize: 11 }}>
+              Used: {fmt(used)} of {fmt(limit)} limit
+            </Text>
+            <Text
+              style={{
+                color: usedPct > 80 ? c.expense : c.textSecondary,
+                fontSize: 11,
+                fontWeight: "600",
+              }}
+            >
+              {usedPct.toFixed(0)}%
+            </Text>
+          </View>
+          <View
+            style={{
+              height: 6,
+              backgroundColor: c.border,
+              borderRadius: 3,
+              overflow: "hidden",
+            }}
+          >
+            <View
+              style={{
+                height: 6,
+                borderRadius: 3,
+                width: `${usedPct}%`,
+                backgroundColor:
+                  usedPct > 80
+                    ? c.expense
+                    : usedPct > 50
+                      ? "#f59e0b"
+                      : c.income,
+              }}
+            />
+          </View>
+          {acc.bankLimit && acc.selfLimit && (
+            <Text style={{ color: c.textTertiary, fontSize: 10, marginTop: 4 }}>
+              Bank limit: {fmt(acc.bankLimit)} · Self limit:{" "}
+              {fmt(acc.selfLimit)}
+            </Text>
+          )}
+        </View>
+      )}
+    </TouchableOpacity>
   );
 }
 
 export default function AccountsScreen() {
   const app = useApp();
-  const c = useColors();
-  const insets = useSafeAreaInsets();
-  const isWeb = Platform.OS === "web";
-  const topPadding = isWeb ? 67 : insets.top;
-  const bottomPad = isWeb ? 34 : 0;
+  const c = useAppColors();
 
   const grouped = useMemo(() => {
-    const map: Partial<Record<AccountType, Account[]>> = {};
-    for (const acc of app.accounts) {
-      if (!map[acc.type]) map[acc.type] = [];
-      map[acc.type]!.push(acc);
-    }
-    return map;
+    const groups: Record<string, Account[]> = {};
+    app.accounts.forEach((a) => {
+      if (!groups[a.type]) groups[a.type] = [];
+      groups[a.type].push(a);
+    });
+    return groups;
   }, [app.accounts]);
 
-  const liquidCash = app.accounts.filter((a) => a.type === "BANK" || a.type === "CASH_WALLET").reduce((s, a) => s + a.balance, 0);
-  const ccBalance = app.accounts.filter((a) => a.type === "CREDIT_CARD").reduce((s, a) => s + a.balance, 0);
-  const netWorth = app.getNetWorth();
+  const totalLiquid = useMemo(
+    () =>
+      app.accounts
+        .filter((a) => a.type === "BANK" || a.type === "CASH_WALLET")
+        .reduce((s, a) => s + a.balance, 0),
+    [app.accounts],
+  );
+  const totalCCDebt = useMemo(
+    () =>
+      app.accounts
+        .filter((a) => a.type === "CREDIT_CARD")
+        .reduce((s, a) => s + a.balance, 0),
+    [app.accounts],
+  );
+  const netWorth = useMemo(() => {
+    const accountTotal = app.accounts.reduce((s, a) => s + a.balance, 0);
+    const investmentTotal = app.investments.reduce(
+      (s, i) => s + i.currentValue,
+      0,
+    );
+    return accountTotal + investmentTotal;
+  }, [app.accounts, app.investments]);
 
-  const handleDelete = (id: string) => {
-    Alert.alert("Delete Account", "This will permanently delete this account.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => app.deleteAccount(id) },
-    ]);
+  const typeLabels: Record<string, string> = {
+    BANK: "Bank Accounts",
+    CREDIT_CARD: "Credit Cards",
+    CASH_WALLET: "Cash Wallets",
+    INVESTMENT: "Investment Accounts",
   };
 
+  const typeOrder = ["BANK", "CREDIT_CARD", "CASH_WALLET", "INVESTMENT"];
+
   return (
-    <View style={{ flex: 1, backgroundColor: c.background }}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: topPadding + 60, paddingBottom: (isWeb ? 84 : insets.bottom + 80) + bottomPad, paddingHorizontal: 16, gap: 16 }}
+    <SafeAreaView
+      edges={["top", "bottom"]}
+      style={{
+        flex: 1,
+        backgroundColor: c.background,
+      }}
+    >
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={c.background}
+        translucent={false}
+      />
+
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: 16,
+          paddingBottom: 8,
+        }}
       >
-        {/* Summary */}
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          {[
-            { label: "Liquid Cash", value: liquidCash, color: c.income },
-            { label: "CC Balance", value: ccBalance, color: ccBalance < 0 ? c.expense : c.foreground },
-            { label: "Net Worth", value: netWorth, color: c.primary },
-          ].map((s) => (
-            <View key={s.label} style={[styles.statCard, { backgroundColor: c.card, flex: 1 }]}>
-              <Text style={{ color: c.mutedForeground, fontSize: 9, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 }} numberOfLines={1}>{s.label}</Text>
-              <AmountText amount={s.value} style={{ color: s.color, fontSize: 13, fontWeight: "800", marginTop: 4 }} />
+        <Text style={{ color: c.text, fontSize: 22, fontWeight: "800" }}>
+          Accounts & Wallets
+        </Text>
+        <TouchableOpacity
+          onPress={() => app.openAccountModal()}
+          style={{
+            backgroundColor: c.primary,
+            borderRadius: 10,
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <Feather name="plus" size={16} color="#fff" />
+          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>
+            Add
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <View
+        style={{
+          flexDirection: "row",
+          gap: 10,
+          paddingHorizontal: 16,
+          paddingBottom: 16,
+        }}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: c.card,
+            borderRadius: c.radius,
+            padding: 12,
+            borderWidth: 1,
+            borderColor: c.cardBorder,
+          }}
+        >
+          <Text
+            style={{
+              color: c.textSecondary,
+              fontSize: 10,
+              fontWeight: "600",
+              textTransform: "uppercase",
+            }}
+          >
+            Liquid Cash
+          </Text>
+          <Text
+            style={{
+              color: c.income,
+              fontSize: 16,
+              fontWeight: "700",
+              marginTop: 4,
+            }}
+          >
+            ₹{totalLiquid.toLocaleString("en-IN")}
+          </Text>
+        </View>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: c.card,
+            borderRadius: c.radius,
+            padding: 12,
+            borderWidth: 1,
+            borderColor: c.cardBorder,
+          }}
+        >
+          <Text
+            style={{
+              color: c.textSecondary,
+              fontSize: 10,
+              fontWeight: "600",
+              textTransform: "uppercase",
+            }}
+          >
+            CC Balance
+          </Text>
+          <Text
+            style={{
+              color: totalCCDebt < 0 ? c.expense : c.text,
+              fontSize: 16,
+              fontWeight: "700",
+              marginTop: 4,
+            }}
+          >
+            ₹{Math.abs(totalCCDebt).toLocaleString("en-IN")}
+          </Text>
+        </View>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: c.card,
+            borderRadius: c.radius,
+            padding: 12,
+            borderWidth: 1,
+            borderColor: c.cardBorder,
+          }}
+        >
+          <Text
+            style={{
+              color: c.textSecondary,
+              fontSize: 10,
+              fontWeight: "600",
+              textTransform: "uppercase",
+            }}
+          >
+            Net Worth
+          </Text>
+          <Text
+            style={{
+              color: c.primary,
+              fontSize: 16,
+              fontWeight: "700",
+              marginTop: 4,
+            }}
+          >
+            ₹{netWorth.toLocaleString("en-IN")}
+          </Text>
+        </View>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 110 }}
+      >
+        {typeOrder
+          .filter((t) => grouped[t]?.length > 0)
+          .map((type) => (
+            <View key={type} style={{ marginBottom: 8 }}>
+              <Text
+                style={{
+                  color: c.textSecondary,
+                  fontSize: 11,
+                  fontWeight: "700",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.8,
+                  marginBottom: 10,
+                }}
+              >
+                {typeLabels[type] ?? type}
+              </Text>
+              {grouped[type].map((acc) => (
+                <AccountCard
+                  key={acc.id}
+                  acc={acc}
+                  onPress={() => app.openAccountModal(acc)}
+                />
+              ))}
             </View>
           ))}
-        </View>
-
-        {/* Grouped Accounts */}
-        {TYPE_ORDER.map((type) => {
-          const accs = grouped[type];
-          if (!accs || accs.length === 0) return null;
-          return (
-            <View key={type}>
-              <Text style={{ color: c.mutedForeground, fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8 }}>
-                {TYPE_LABEL[type]}
-              </Text>
-              <View style={{ gap: 10 }}>
-                {accs.map((acc) => (
-                  <AccountCard
-                    key={acc.id}
-                    acc={acc}
-                    onEdit={() => app.openAccountModal(acc)}
-                    onDelete={() => handleDelete(acc.id)}
-                  />
-                ))}
-              </View>
-            </View>
-          );
-        })}
 
         {app.accounts.length === 0 && (
-          <View style={{ paddingVertical: 48, alignItems: "center", gap: 12 }}>
-            <Feather name="credit-card" size={36} color={c.mutedForeground} />
-            <Text style={{ color: c.mutedForeground, fontSize: 15, fontWeight: "600" }}>No accounts yet</Text>
-            <Text style={{ color: c.mutedForeground, fontSize: 13, textAlign: "center" }}>Add your bank accounts, credit cards, and wallets</Text>
+          <View style={{ alignItems: "center", paddingTop: 60 }}>
+            <Feather name="pocket" size={48} color={c.mutedForeground} />
+            <Text
+              style={{
+                color: c.mutedForeground,
+                fontSize: 16,
+                marginTop: 16,
+                textAlign: "center",
+              }}
+            >
+              No accounts yet{"\n"}Tap + Add to create one
+            </Text>
           </View>
         )}
       </ScrollView>
-
-      {/* Header */}
-      <View style={[styles.header, { top: topPadding, backgroundColor: c.background }]}>
-        <Text style={{ color: c.foreground, fontSize: 20, fontWeight: "800" }}>Accounts</Text>
-        <TouchableOpacity onPress={() => app.openAccountModal()} style={[styles.addBtn, { backgroundColor: c.primary }]}>
-          <Feather name="plus" size={16} color="#fff" />
-        </TouchableOpacity>
-      </View>
-    </View>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  header: { position: "absolute", left: 0, right: 0, flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, height: 56 },
-  rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  accountCard: { flexDirection: "row", alignItems: "center", borderRadius: 16, padding: 14, gap: 12, overflow: "hidden" },
-  accentBar: { width: 4, height: "100%", borderRadius: 2, position: "absolute", left: 0, top: 0, bottom: 0 },
-  statCard: { borderRadius: 14, padding: 12 },
-  iconBtn: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  addBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
-});

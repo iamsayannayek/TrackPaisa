@@ -1,0 +1,1 @@
+- [PaisaWeb architecture](paisa-web-arch.md) — offline-first Expo finance app; key patterns for colors, context, charts.

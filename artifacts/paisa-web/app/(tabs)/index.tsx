@@ -1,218 +1,1397 @@
-import React, { useMemo } from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, Dimensions } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import React, { useMemo, useState } from "react";
+import {
+  Alert,
+  Modal,
+  Platform,
+  ScrollView,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useApp } from "@/context/AppContext";
-import { useColors } from "@/hooks/useColors";
-import { AmountText, fmt } from "@/components/ui/AmountText";
-import { DonutChart } from "@/components/charts/DonutChart";
-import { SavingsLineChart } from "@/components/charts/LineChart";
+import { useAppColors } from "@/hooks/useAppColors";
+import { DonutChart, SavingsLineChart } from "@/components/Charts";
 
-const { width: SCREEN_W } = Dimensions.get("window");
+const fmt = (n: number) => `₹${Math.abs(n).toLocaleString("en-IN")}`;
+const fmtK = (n: number) => {
+  if (Math.abs(n) >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
+  if (Math.abs(n) >= 1000) return `₹${(n / 1000).toFixed(1)}k`;
+  return fmt(n);
+};
 
-function currentMonth() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+function handleResetPress(app: ReturnType<typeof useApp>) {
+  Alert.alert(
+    "Reset app",
+    "This will clear all stored data and reset the app to a fresh install state. Are you sure you want to continue?",
+    [
+      { text: "Cancel", style: "cancel" },
+      { text: "Reset", style: "destructive", onPress: app.resetApp },
+    ],
+  );
 }
 
-function monthLabel(m: string) {
-  const [y, mo] = m.split("-");
-  const d = new Date(Number(y), Number(mo) - 1, 1);
-  return d.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
-}
-
-export default function DashboardScreen() {
-  const app = useApp();
-  const c = useColors();
-  const insets = useSafeAreaInsets();
-  const isWeb = Platform.OS === "web";
-
-  const month = currentMonth();
-  const stats = app.getMonthStats(month);
-  const netWorth = app.getNetWorth();
-
-  const monthTxs = useMemo(() => app.transactions.filter((t) => t.date.startsWith(month)), [app.transactions, month]);
-  const recentTxs = monthTxs.slice(0, 6);
-
-  const pendingCommitments = app.commitments.filter((c) => c.month === month && !c.isPaid && !c.isSkipped).slice(0, 4);
-
-  const last5Months = useMemo(() => {
-    const months: string[] = [];
-    const now = new Date();
-    for (let i = 4; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
-    }
-    return months.map((m) => {
-      const s = app.getMonthStats(m);
-      return { label: monthLabel(m), spent: s.expense, saved: s.saved };
-    });
-  }, [app.transactions]);
-
-  const donutData = useMemo(() => {
-    const monthBudgets = app.budgets.filter((b) => b.month === month);
-    return monthBudgets.map((b) => {
-      const spent = monthTxs.filter((t) => t.type === "EXPENSE" && t.category === b.category).reduce((s, t) => s + t.amount, 0);
-      return { label: b.category, value: spent, color: b.color };
-    }).filter((d) => d.value > 0);
-  }, [app.budgets, monthTxs, month]);
-
-  const topPadding = isWeb ? 67 : insets.top;
-  const bottomPad = isWeb ? 34 : 0;
-
+function StatCard({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string;
+  color?: string;
+}) {
+  const c = useAppColors();
   return (
-    <View style={{ flex: 1, backgroundColor: c.background }}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: topPadding + 60, paddingBottom: (isWeb ? 84 : insets.bottom + 80) + bottomPad, paddingHorizontal: 16, gap: 16 }}
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: c.card,
+        borderRadius: c.radius,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: c.cardBorder,
+      }}
+    >
+      <Text
+        style={{
+          color: c.textSecondary,
+          fontSize: 10,
+          fontWeight: "600",
+          textTransform: "uppercase",
+          letterSpacing: 0.5,
+        }}
       >
-        {/* Net Worth */}
-        <View style={[styles.card, { backgroundColor: c.primary }]}>
-          <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 1 }}>Net Worth</Text>
-          <Text style={{ color: "#fff", fontSize: 32, fontWeight: "800", marginTop: 4 }}>
-            ₹{netWorth.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
-          </Text>
-          <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 4 }}>
-            {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
-          </Text>
-        </View>
-
-        {/* Stats Row */}
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          {[
-            { label: "Income", value: stats.income, color: c.income },
-            { label: "Expense", value: stats.expense, color: c.expense },
-            { label: "Saved", value: stats.saved, color: stats.saved >= 0 ? c.income : c.expense },
-          ].map((s) => (
-            <View key={s.label} style={[styles.statCard, { backgroundColor: c.card, flex: 1 }]}>
-              <Text style={{ color: c.mutedForeground, fontSize: 10, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 }}>{s.label}</Text>
-              <AmountText amount={s.value} style={{ color: s.color, fontSize: 14, fontWeight: "800", marginTop: 4 }} />
-            </View>
-          ))}
-        </View>
-
-        {/* Savings Chart */}
-        <View style={[styles.card, { backgroundColor: c.card }]}>
-          <Text style={[styles.sectionTitle, { color: c.foreground }]}>Savings vs Spending</Text>
-          <View style={{ marginTop: 12 }}>
-            <SavingsLineChart data={last5Months} width={SCREEN_W - 64} />
-          </View>
-        </View>
-
-        {/* Donut + Budgets */}
-        {donutData.length > 0 && (
-          <View style={[styles.card, { backgroundColor: c.card }]}>
-            <Text style={[styles.sectionTitle, { color: c.foreground }]}>Spending by Category</Text>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 16, marginTop: 12 }}>
-              <DonutChart data={donutData} size={130} centerLabel="spent" centerValue={fmt(donutData.reduce((s, d) => s + d.value, 0))} />
-              <View style={{ flex: 1, gap: 8 }}>
-                {donutData.slice(0, 5).map((d) => (
-                  <View key={d.label} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: d.color }} />
-                    <Text style={{ color: c.mutedForeground, fontSize: 11, flex: 1 }} numberOfLines={1}>{d.label}</Text>
-                    <Text style={{ color: c.foreground, fontSize: 11, fontWeight: "700" }}>₹{d.value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Upcoming Commitments */}
-        {pendingCommitments.length > 0 && (
-          <View style={[styles.card, { backgroundColor: c.card }]}>
-            <View style={styles.rowBetween}>
-              <Text style={[styles.sectionTitle, { color: c.foreground }]}>Upcoming Bills</Text>
-              <Text style={{ color: c.mutedForeground, fontSize: 12 }}>{pendingCommitments.length} pending</Text>
-            </View>
-            <View style={{ gap: 10, marginTop: 12 }}>
-              {pendingCommitments.map((comm) => (
-                <View key={comm.id} style={[styles.rowBetween, { paddingVertical: 6 }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: c.foreground, fontSize: 14, fontWeight: "600" }}>{comm.name}</Text>
-                    <Text style={{ color: c.mutedForeground, fontSize: 12 }}>Due day {comm.dueDay}</Text>
-                  </View>
-                  <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-                    <AmountText amount={comm.amount} style={{ color: c.expense, fontSize: 14, fontWeight: "700" }} />
-                    <TouchableOpacity onPress={() => app.skipCommitment(comm.id)}
-                      style={[styles.actionBtn, { backgroundColor: c.muted }]}>
-                      <Feather name="skip-forward" size={13} color={c.mutedForeground} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => app.markCommitmentPaid(comm.id)}
-                      style={[styles.actionBtn, { backgroundColor: c.income + "22" }]}>
-                      <Feather name="check" size={13} color={c.income} />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Recent Transactions */}
-        <View style={[styles.card, { backgroundColor: c.card }]}>
-          <View style={styles.rowBetween}>
-            <Text style={[styles.sectionTitle, { color: c.foreground }]}>Recent Transactions</Text>
-          </View>
-          {recentTxs.length === 0 ? (
-            <View style={{ paddingVertical: 24, alignItems: "center", gap: 8 }}>
-              <Feather name="inbox" size={28} color={c.mutedForeground} />
-              <Text style={{ color: c.mutedForeground, fontSize: 13 }}>No transactions this month</Text>
-            </View>
-          ) : (
-            <View style={{ gap: 2, marginTop: 10 }}>
-              {recentTxs.map((tx) => {
-                const acc = app.accounts.find((a) => a.id === tx.sourceId);
-                return (
-                  <View key={tx.id} style={[styles.txRow, { borderBottomColor: c.border }]}>
-                    <View style={[styles.txIcon, { backgroundColor: tx.type === "INCOME" ? c.income + "22" : tx.type === "TRANSFER" ? c.transfer + "22" : c.expense + "22" }]}>
-                      <Feather name={tx.type === "INCOME" ? "trending-up" : tx.type === "TRANSFER" ? "repeat" : "trending-down"} size={14} color={tx.type === "INCOME" ? c.income : tx.type === "TRANSFER" ? c.transfer : c.expense} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: c.foreground, fontSize: 13, fontWeight: "600" }} numberOfLines={1}>{tx.category}</Text>
-                      <Text style={{ color: c.mutedForeground, fontSize: 11 }}>{acc?.name ?? "Unknown"} · {tx.date}</Text>
-                    </View>
-                    <AmountText amount={tx.type === "INCOME" ? tx.amount : -tx.amount} style={{ fontSize: 13, fontWeight: "700" }} showSign colored incomeColor={c.income} expenseColor={c.expense} />
-                  </View>
-                );
-              })}
-            </View>
-          )}
-        </View>
-      </ScrollView>
-
-      {/* Header */}
-      <View style={[styles.header, { top: topPadding, backgroundColor: c.background }]}>
-        <View>
-          <Text style={{ color: c.foreground, fontSize: 20, fontWeight: "800" }}>PaisaWeb</Text>
-        </View>
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          <TouchableOpacity onPress={() => app.toggleDarkMode()} style={[styles.iconBtn, { backgroundColor: c.secondary }]}>
-            <Feather name={app.isDarkMode ? "sun" : "moon"} size={16} color={c.foreground} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* FAB */}
-      <TouchableOpacity
-        onPress={() => app.openTxModal()}
-        style={[styles.fab, { backgroundColor: c.primary, bottom: isWeb ? 100 : insets.bottom + 70 }]}
+        {label}
+      </Text>
+      <Text
+        style={{
+          color: color ?? c.text,
+          fontSize: 17,
+          fontWeight: "700",
+          marginTop: 4,
+        }}
       >
-        <Feather name="plus" size={24} color="#fff" />
-      </TouchableOpacity>
+        {value}
+      </Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  header: { position: "absolute", left: 0, right: 0, flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, height: 56 },
-  card: { borderRadius: 16, padding: 16 },
-  statCard: { borderRadius: 14, padding: 12 },
-  sectionTitle: { fontSize: 15, fontWeight: "700" },
-  rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  txRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
-  txIcon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  fab: { position: "absolute", right: 20, width: 54, height: 54, borderRadius: 27, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 8 },
-  iconBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
-  actionBtn: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-});
+function SectionHeader({
+  title,
+  onAction,
+  actionLabel,
+  onAdd,
+}: {
+  title: string;
+  onAction?: () => void;
+  actionLabel?: string;
+  onAdd?: () => void;
+}) {
+  const c = useAppColors();
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 10,
+      }}
+    >
+      <Text style={{ color: c.text, fontSize: 16, fontWeight: "700" }}>
+        {title}
+      </Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+        {onAdd && (
+          <TouchableOpacity
+            onPress={onAdd}
+            activeOpacity={0.7}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+              backgroundColor: c.primary + "22",
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 6,
+            }}
+          >
+            <Feather name="plus" size={14} color={c.primary} />
+            <Text style={{ color: c.primary, fontSize: 12, fontWeight: "700" }}>
+              Add
+            </Text>
+          </TouchableOpacity>
+        )}
+        {onAction && (
+          <TouchableOpacity onPress={onAction} activeOpacity={0.7}>
+            <Text style={{ color: c.primary, fontSize: 13, fontWeight: "600" }}>
+              {actionLabel ?? "See All"}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function AllCommitmentsView({ onClose }: { onClose: () => void }) {
+  const app = useApp();
+  const c = useAppColors();
+  const [filter, setFilter] = useState<"ALL" | "UPCOMING" | "PAID" | "SKIPPED">(
+    "ALL",
+  );
+
+  const filtered = useMemo(() => {
+    let list = app.commitments;
+    if (filter === "PAID") list = app.commitments.filter((c2) => c2.isPaid);
+    else if (filter === "SKIPPED")
+      list = app.commitments.filter((c2) => c2.isSkipped);
+    else if (filter === "UPCOMING")
+      list = app.commitments.filter((c2) => !c2.isPaid && !c2.isSkipped);
+
+    return list.sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    );
+  }, [app.commitments, filter]);
+
+  const getAccName = (id?: string) =>
+    app.accounts.find((a) => a.id === id)?.name ?? id ?? "";
+  const getDestName = (id?: string) => {
+    if (!id) return null;
+    return (
+      app.accounts.find((a) => a.id === id)?.name ??
+      app.investments.find((i) => i.id === id)?.name ??
+      null
+    );
+  };
+
+  return (
+    <Modal visible animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView
+        edges={["top", "bottom"]}
+        style={{ flex: 1, backgroundColor: c.background }}
+      >
+        <StatusBar barStyle="light-content" backgroundColor={c.background} />
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            padding: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: c.border,
+          }}
+        >
+          <TouchableOpacity onPress={onClose} style={{ marginRight: 12 }}>
+            <Feather name="arrow-left" size={22} color={c.text} />
+          </TouchableOpacity>
+          <Text
+            style={{ color: c.text, fontSize: 18, fontWeight: "700", flex: 1 }}
+          >
+            All Commitments
+          </Text>
+          <TouchableOpacity
+            onPress={() => app.openCommitmentModal()}
+            style={{
+              backgroundColor: c.primary,
+              borderRadius: 8,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+            }}
+          >
+            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>
+              + Add
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <View style={{ flexDirection: "row", gap: 8, padding: 12 }}>
+          {(["ALL", "UPCOMING", "PAID", "SKIPPED"] as const).map((f) => (
+            <TouchableOpacity
+              key={f}
+              onPress={() => setFilter(f)}
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 7,
+                borderRadius: 20,
+                backgroundColor: filter === f ? c.primary : c.surface,
+              }}
+            >
+              <Text
+                style={{
+                  color: filter === f ? "#fff" : c.textSecondary,
+                  fontWeight: "600",
+                  fontSize: 13,
+                }}
+              >
+                {f}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 32 }}>
+          {filtered.length === 0 ? (
+            <View style={{ alignItems: "center", paddingTop: 60 }}>
+              <Feather name="calendar" size={40} color={c.mutedForeground} />
+              <Text
+                style={{
+                  color: c.mutedForeground,
+                  marginTop: 12,
+                  fontSize: 15,
+                }}
+              >
+                No commitments here
+              </Text>
+            </View>
+          ) : (
+            filtered.map((com) => {
+              const destInv = app.investments.find((i) => i.id === com.destId);
+              const isOverSkipped =
+                destInv &&
+                !destInv.treatAsExpense &&
+                (destInv.skippedCount || 0) >= 2;
+              const isAccumulated =
+                destInv &&
+                destInv.treatAsExpense &&
+                (destInv.skippedCount || 0) > 0;
+
+              return (
+                <View
+                  key={com.id}
+                  style={{
+                    backgroundColor: c.card,
+                    borderRadius: c.radius,
+                    padding: 14,
+                    marginBottom: 10,
+                    borderWidth: 1,
+                    borderColor: com.isPaid
+                      ? c.income + "44"
+                      : com.isSkipped
+                        ? c.mutedForeground + "44"
+                        : c.cardBorder,
+                  }}
+                >
+                  {isOverSkipped && (
+                    <View
+                      style={{
+                        backgroundColor: "#ef444422",
+                        padding: 8,
+                        borderRadius: 6,
+                        marginBottom: 12,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: "#ef4444",
+                          fontSize: 12,
+                          fontWeight: "600",
+                        }}
+                      >
+                        ⚠️ You've skipped {destInv.name} {destInv.skippedCount}{" "}
+                        times! Try to stay on track.
+                      </Text>
+                    </View>
+                  )}
+                  {isAccumulated && (
+                    <View
+                      style={{
+                        backgroundColor: "#f59e0b22",
+                        padding: 8,
+                        borderRadius: 6,
+                        marginBottom: 12,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: "#f59e0b",
+                          fontSize: 12,
+                          fontWeight: "600",
+                        }}
+                      >
+                        ⚠️ Amount includes {destInv.skippedCount} previously
+                        skipped premium(s).
+                      </Text>
+                    </View>
+                  )}
+
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <View style={{ flex: 1, marginRight: 12 }}>
+                      <Text
+                        style={{
+                          color: c.text,
+                          fontSize: 15,
+                          fontWeight: "700",
+                        }}
+                      >
+                        {com.title}
+                      </Text>
+                      <Text
+                        style={{
+                          color: c.textSecondary,
+                          fontSize: 12,
+                          marginTop: 3,
+                        }}
+                      >
+                        Due: {com.date} · From: {getAccName(com.sourceId)}
+                        {getDestName(com.destId)
+                          ? `  →  ${getDestName(com.destId)}`
+                          : ""}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: "flex-end" }}>
+                      <Text
+                        style={{
+                          color: c.expense,
+                          fontWeight: "700",
+                          fontSize: 15,
+                          marginBottom: 8,
+                        }}
+                      >
+                        {fmt(com.amount)}
+                      </Text>
+                      {com.isPaid ? (
+                        <View
+                          style={{
+                            backgroundColor: c.income + "22",
+                            borderRadius: 12,
+                            paddingHorizontal: 10,
+                            paddingVertical: 4,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: c.income,
+                              fontWeight: "700",
+                              fontSize: 11,
+                            }}
+                          >
+                            PAID
+                          </Text>
+                        </View>
+                      ) : com.isSkipped ? (
+                        <View
+                          style={{
+                            backgroundColor: c.mutedForeground + "22",
+                            borderRadius: 12,
+                            paddingHorizontal: 10,
+                            paddingVertical: 4,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: c.mutedForeground,
+                              fontWeight: "700",
+                              fontSize: 11,
+                            }}
+                          >
+                            SKIPPED
+                          </Text>
+                        </View>
+                      ) : (
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                          <TouchableOpacity
+                            onPress={() => app.openCommitmentModal(com)}
+                            style={{
+                              padding: 6,
+                              backgroundColor: c.surfaceElevated,
+                              borderRadius: 8,
+                              justifyContent: "center",
+                            }}
+                          >
+                            <Feather
+                              name="edit-2"
+                              size={14}
+                              color={c.textSecondary}
+                            />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => app.skipCommitment(com.id)}
+                            style={{
+                              backgroundColor: c.surfaceElevated,
+                              borderRadius: 8,
+                              paddingHorizontal: 10,
+                              paddingVertical: 6,
+                              justifyContent: "center",
+                              borderWidth: 1,
+                              borderColor: c.border,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: c.textSecondary,
+                                fontWeight: "700",
+                                fontSize: 11,
+                              }}
+                            >
+                              Skip
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => app.markCommitmentPaid(com.id)}
+                            style={{
+                              backgroundColor: c.income + "22",
+                              borderRadius: 8,
+                              paddingHorizontal: 10,
+                              paddingVertical: 6,
+                              justifyContent: "center",
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: c.income,
+                                fontWeight: "700",
+                                fontSize: 11,
+                              }}
+                            >
+                              Mark Paid
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+function AllTransactionsView({ onClose }: { onClose: () => void }) {
+  const app = useApp();
+  const c = useAppColors();
+  const [filter, setFilter] = useState<
+    "ALL" | "INCOME" | "EXPENSE" | "TRANSFER"
+  >("ALL");
+
+  const filtered = useMemo(() => {
+    const monthTxs = app.transactions.filter((t) =>
+      t.date.startsWith(app.currentMonth),
+    );
+    return filter === "ALL"
+      ? monthTxs
+      : monthTxs.filter((t) => t.type === filter);
+  }, [app.transactions, app.currentMonth, filter]);
+
+  const getAccName = (id?: string) => {
+    if (!id) return "";
+    return (
+      app.accounts.find((a) => a.id === id)?.name ??
+      app.investments.find((i) => i.id === id)?.name ??
+      id
+    );
+  };
+
+  const txColor = (type: string) => {
+    if (type === "INCOME") return c.income;
+    if (type === "EXPENSE") return c.expense;
+    return c.transfer;
+  };
+  const txSign = (type: string) =>
+    type === "INCOME" ? "+" : type === "EXPENSE" ? "−" : "→";
+
+  return (
+    <Modal visible animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView
+        edges={["top", "bottom"]}
+        style={{ flex: 1, backgroundColor: c.background }}
+      >
+        <StatusBar barStyle="light-content" backgroundColor={c.background} />
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            padding: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: c.border,
+          }}
+        >
+          <TouchableOpacity onPress={onClose} style={{ marginRight: 12 }}>
+            <Feather name="arrow-left" size={22} color={c.text} />
+          </TouchableOpacity>
+          <Text
+            style={{ color: c.text, fontSize: 18, fontWeight: "700", flex: 1 }}
+          >
+            Transactions — {app.currentMonth}
+          </Text>
+          <TouchableOpacity
+            onPress={() => app.openTxModal()}
+            style={{
+              backgroundColor: c.primary,
+              borderRadius: 8,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+            }}
+          >
+            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>
+              + Add
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <View style={{ flexDirection: "row", gap: 6, padding: 12 }}>
+          {(["ALL", "INCOME", "EXPENSE", "TRANSFER"] as const).map((f) => (
+            <TouchableOpacity
+              key={f}
+              onPress={() => setFilter(f)}
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 16,
+                backgroundColor: filter === f ? c.primary : c.surface,
+              }}
+            >
+              <Text
+                style={{
+                  color: filter === f ? "#fff" : c.textSecondary,
+                  fontWeight: "600",
+                  fontSize: 11,
+                }}
+              >
+                {f}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 32 }}>
+          {filtered.length === 0 ? (
+            <View style={{ alignItems: "center", paddingTop: 60 }}>
+              <Feather name="inbox" size={40} color={c.mutedForeground} />
+              <Text
+                style={{
+                  color: c.mutedForeground,
+                  marginTop: 12,
+                  fontSize: 15,
+                }}
+              >
+                No transactions
+              </Text>
+            </View>
+          ) : (
+            filtered.map((tx) => (
+              <TouchableOpacity
+                key={tx.id}
+                onPress={() => app.openTxModal(tx)}
+                style={{
+                  backgroundColor: c.card,
+                  borderRadius: c.radius,
+                  padding: 14,
+                  marginBottom: 8,
+                  borderWidth: 1,
+                  borderColor: c.cardBorder,
+                }}
+                activeOpacity={0.75}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{ color: c.text, fontSize: 14, fontWeight: "600" }}
+                    >
+                      {tx.note || tx.category}
+                    </Text>
+                    <Text
+                      style={{
+                        color: c.textSecondary,
+                        fontSize: 12,
+                        marginTop: 2,
+                      }}
+                    >
+                      {tx.date} · {getAccName(tx.sourceId)}
+                      {tx.destId ? ` → ${getAccName(tx.destId)}` : ""} ·{" "}
+                      {tx.category}
+                    </Text>
+                  </View>
+                  <Text
+                    style={{
+                      color: txColor(tx.type),
+                      fontWeight: "700",
+                      fontSize: 15,
+                      marginLeft: 8,
+                    }}
+                  >
+                    {txSign(tx.type)}
+                    {fmt(tx.amount)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+export default function DashboardScreen() {
+  const app = useApp();
+  const c = useAppColors();
+  const [chartFilter, setChartFilter] = useState<"both" | "spent" | "saved">(
+    "both",
+  );
+
+  const monthTxs = useMemo(
+    () =>
+      app.transactions
+        .filter((t) => t.date.startsWith(app.currentMonth))
+        .sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+        ),
+    [app.transactions, app.currentMonth],
+  );
+
+  const income = useMemo(
+    () =>
+      monthTxs
+        .filter((t) => t.type === "INCOME")
+        .reduce((s, t) => s + t.amount, 0),
+    [monthTxs],
+  );
+  const expenses = useMemo(
+    () =>
+      monthTxs
+        .filter((t) => t.type === "EXPENSE")
+        .reduce((s, t) => s + t.amount, 0),
+    [monthTxs],
+  );
+  const netWorth = useMemo(() => {
+    const accountTotal = app.accounts.reduce((s, a) => s + a.balance, 0);
+    const investmentTotal = app.investments.reduce(
+      (s, i) => s + i.currentValue,
+      0,
+    );
+    return accountTotal + investmentTotal;
+  }, [app.accounts, app.investments]);
+
+  const upcomingCommitments = useMemo(
+    () =>
+      app.commitments
+        .filter((c2) => !c2.isPaid && !c2.isSkipped)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        .slice(0, 4),
+    [app.commitments],
+  );
+
+  const recentTxs = useMemo(() => monthTxs.slice(0, 6), [monthTxs]);
+
+  const getAccName = (id?: string) =>
+    app.accounts.find((a) => a.id === id)?.name ?? id ?? "";
+
+  const monthNames = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+
+  const chartData = useMemo(() => {
+    const monthsToShow = 5;
+    const currentMonthParts = app.currentMonth.split("-");
+    const currentYear = parseInt(currentMonthParts[0] ?? "2026", 10);
+    const currentMonthIndex = Math.max(
+      0,
+      Math.min(11, parseInt(currentMonthParts[1] ?? "1", 10) - 1),
+    );
+    const currentDate = new Date(currentYear, currentMonthIndex, 1);
+
+    return Array.from({ length: monthsToShow }, (_, index) => {
+      const monthDate = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() - (monthsToShow - 1 - index),
+        1,
+      );
+      const monthKey = `${monthDate.getFullYear()}-${String(
+        monthDate.getMonth() + 1,
+      ).padStart(2, "0")}`;
+      const monthLabel = monthNames[monthDate.getMonth()] ?? "Now";
+
+      const monthTransactions = app.transactions.filter((t) =>
+        t.date.startsWith(monthKey),
+      );
+      const monthIncome = monthTransactions
+        .filter((t) => t.type === "INCOME")
+        .reduce((sum, t) => sum + t.amount, 0);
+      const monthExpenses = monthTransactions
+        .filter((t) => t.type === "EXPENSE")
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      return {
+        name: monthLabel,
+        spent: monthExpenses,
+        saved: Math.max(0, monthIncome - monthExpenses),
+      };
+    });
+  }, [app.transactions, app.currentMonth]);
+
+  const donutData = useMemo(() => {
+    const monthBudgets = app.budgets.filter(
+      (b) => b.month === app.currentMonth,
+    );
+    return monthBudgets
+      .map((b) => {
+        const spent = monthTxs
+          .filter((t) => t.type === "EXPENSE" && t.category === b.category)
+          .reduce((s, t) => s + t.amount, 0);
+        return { name: b.category, value: spent, color: b.color };
+      })
+      .filter((d) => d.value > 0);
+  }, [app.budgets, monthTxs, app.currentMonth]);
+
+  return (
+    <SafeAreaView
+      edges={["top", "bottom"]}
+      style={{
+        flex: 1,
+        backgroundColor: c.background,
+      }}
+    >
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={c.background}
+        translucent={false}
+      />
+
+      {app.activeTab === "all_commitments" && (
+        <AllCommitmentsView onClose={() => app.setActiveTab("dashboard")} />
+      )}
+      {app.activeTab === "all_transactions" && (
+        <AllTransactionsView onClose={() => app.setActiveTab("dashboard")} />
+      )}
+
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 110 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 18,
+          }}
+        >
+          <View>
+            <Text
+              style={{
+                color: c.textSecondary,
+                fontSize: 12,
+                fontWeight: "500",
+              }}
+            >
+              {new Date().toLocaleDateString("en-IN", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })}
+            </Text>
+            <Text
+              style={{
+                color: c.text,
+                fontSize: 22,
+                fontWeight: "800",
+                marginTop: 2,
+              }}
+            >
+              PaisaWeb 💸
+            </Text>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <TouchableOpacity
+              onPress={() => handleResetPress(app)}
+              style={{
+                backgroundColor: c.surfaceElevated,
+                borderRadius: 20,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 1,
+                borderColor: c.border,
+              }}
+            >
+              <Text
+                style={{
+                  color: c.primary,
+                  fontSize: 12,
+                  fontWeight: "700",
+                  letterSpacing: 0.2,
+                }}
+              >
+                Reset
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={app.toggleTheme}
+              style={{
+                backgroundColor: c.surfaceElevated,
+                borderRadius: 20,
+                width: 36,
+                height: 36,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Feather
+                name={app.isDarkMode ? "sun" : "moon"}
+                size={18}
+                color={c.text}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Net Worth Card */}
+        <View
+          style={{
+            backgroundColor: c.primary + "1A",
+            borderRadius: c.radius + 4,
+            padding: 20,
+            marginBottom: 14,
+            borderWidth: 1,
+            borderColor: c.primary + "44",
+          }}
+        >
+          <Text
+            style={{
+              color: c.primary,
+              fontSize: 11,
+              fontWeight: "700",
+              textTransform: "uppercase",
+              letterSpacing: 1,
+            }}
+          >
+            Total Net Worth
+          </Text>
+          <Text
+            style={{
+              color: c.text,
+              fontSize: 32,
+              fontWeight: "800",
+              marginTop: 4,
+            }}
+          >
+            ₹{netWorth.toLocaleString("en-IN")}
+          </Text>
+          <Text style={{ color: c.textSecondary, fontSize: 13, marginTop: 4 }}>
+            {app.currentMonth} · {monthTxs.length} transactions
+          </Text>
+        </View>
+
+        {/* Stats Row */}
+        <View style={{ flexDirection: "row", gap: 10, marginBottom: 18 }}>
+          <StatCard label="Income" value={fmtK(income)} color={c.income} />
+          <StatCard label="Expenses" value={fmtK(expenses)} color={c.expense} />
+          <StatCard
+            label="Saved"
+            value={fmtK(Math.max(0, income - expenses))}
+            color={c.transfer}
+          />
+        </View>
+
+        {/* Charts Column */}
+        <View style={{ flexDirection: "column", gap: 12, marginBottom: 20 }}>
+          <View
+            style={{
+              backgroundColor: c.card,
+              borderRadius: c.radius,
+              padding: 14,
+              borderWidth: 1,
+              borderColor: c.cardBorder,
+            }}
+          >
+            <Text
+              style={{
+                color: c.text,
+                fontSize: 13,
+                fontWeight: "700",
+                marginBottom: 8,
+              }}
+            >
+              Savings vs Spending Trend
+            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                gap: 6,
+                marginBottom: 8,
+                flexWrap: "wrap",
+              }}
+            >
+              {(["both", "spent", "saved"] as const).map((f) => (
+                <TouchableOpacity
+                  key={f}
+                  onPress={() => setChartFilter(f)}
+                  style={{
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    borderRadius: 10,
+                    backgroundColor:
+                      chartFilter === f ? c.primary : c.surfaceElevated,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: chartFilter === f ? "#fff" : c.mutedForeground,
+                      fontSize: 10,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {f === "both" ? "Both" : f === "spent" ? "Spent" : "Saved"}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <SavingsLineChart data={chartData} filter={chartFilter} />
+            <View
+              style={{
+                flexDirection: "row",
+                gap: 12,
+                marginTop: 6,
+                flexWrap: "wrap",
+              }}
+            >
+              {(chartFilter === "both" || chartFilter === "spent") && (
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+                >
+                  <View
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: "#f43f5e",
+                    }}
+                  />
+                  <Text style={{ color: c.textSecondary, fontSize: 10 }}>
+                    Spent
+                  </Text>
+                </View>
+              )}
+              {(chartFilter === "both" || chartFilter === "saved") && (
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+                >
+                  <View
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: "#10b981",
+                    }}
+                  />
+                  <Text style={{ color: c.textSecondary, fontSize: 10 }}>
+                    Saved
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          <View
+            style={{
+              backgroundColor: c.card,
+              borderRadius: c.radius,
+              padding: 14,
+              borderWidth: 1,
+              borderColor: c.cardBorder,
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                color: c.text,
+                fontSize: 13,
+                fontWeight: "700",
+                marginBottom: 8,
+                alignSelf: "flex-start",
+              }}
+            >
+              By Category
+            </Text>
+            <DonutChart data={donutData} />
+            <View style={{ marginTop: 8, width: "100%" }}>
+              {donutData.slice(0, 4).map((d, i) => (
+                <View
+                  key={i}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 5,
+                    marginBottom: 3,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: 4,
+                      backgroundColor: d.color,
+                    }}
+                  />
+                  <Text
+                    style={{ color: c.textSecondary, fontSize: 9 }}
+                    numberOfLines={1}
+                  >
+                    {d.name}
+                  </Text>
+                </View>
+              ))}
+              {donutData.length === 0 && (
+                <Text
+                  style={{
+                    color: c.mutedForeground,
+                    fontSize: 10,
+                    textAlign: "center",
+                  }}
+                >
+                  No data yet
+                </Text>
+              )}
+            </View>
+          </View>
+        </View>
+
+        {/* Upcoming Commitments */}
+        <View style={{ marginBottom: 20 }}>
+          <SectionHeader
+            title="Upcoming Commitments"
+            onAction={() => app.setActiveTab("all_commitments")}
+            actionLabel="See All"
+            onAdd={() => app.openCommitmentModal()}
+          />
+          {upcomingCommitments.length === 0 ? (
+            <View
+              style={{
+                backgroundColor: c.card,
+                borderRadius: c.radius,
+                padding: 24,
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: c.cardBorder,
+              }}
+            >
+              <Text style={{ color: c.mutedForeground, fontSize: 14 }}>
+                All commitments settled! 🎉
+              </Text>
+            </View>
+          ) : (
+            upcomingCommitments.map((com) => {
+              const destInv = app.investments.find((i) => i.id === com.destId);
+              const isOverSkipped =
+                destInv &&
+                !destInv.treatAsExpense &&
+                (destInv.skippedCount || 0) >= 2;
+              const isAccumulated =
+                destInv &&
+                destInv.treatAsExpense &&
+                (destInv.skippedCount || 0) > 0;
+
+              return (
+                <TouchableOpacity
+                  key={com.id}
+                  onPress={() => app.openCommitmentModal(com)}
+                  activeOpacity={0.75}
+                  style={{
+                    backgroundColor: c.card,
+                    borderRadius: c.radius,
+                    padding: 14,
+                    marginBottom: 8,
+                    borderWidth: 1,
+                    borderColor: c.cardBorder,
+                    flexDirection: "column",
+                  }}
+                >
+                  {isOverSkipped && (
+                    <View
+                      style={{
+                        backgroundColor: "#ef444422",
+                        padding: 8,
+                        borderRadius: 6,
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: "#ef4444",
+                          fontSize: 12,
+                          fontWeight: "600",
+                        }}
+                      >
+                        ⚠️ You've skipped {destInv.name} {destInv.skippedCount}{" "}
+                        times!
+                      </Text>
+                    </View>
+                  )}
+                  {isAccumulated && (
+                    <View
+                      style={{
+                        backgroundColor: "#f59e0b22",
+                        padding: 8,
+                        borderRadius: 6,
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: "#f59e0b",
+                          fontSize: 12,
+                          fontWeight: "600",
+                        }}
+                      >
+                        ⚠️ Includes {destInv.skippedCount} skipped premium(s).
+                      </Text>
+                    </View>
+                  )}
+
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{
+                          color: c.text,
+                          fontSize: 14,
+                          fontWeight: "600",
+                        }}
+                      >
+                        {com.title}
+                      </Text>
+                      <Text
+                        style={{
+                          color: c.textSecondary,
+                          fontSize: 12,
+                          marginTop: 2,
+                        }}
+                      >
+                        Due {com.date} · {getAccName(com.sourceId)}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: "flex-end" }}>
+                      <Text
+                        style={{
+                          color: c.expense,
+                          fontWeight: "700",
+                          marginBottom: 6,
+                        }}
+                      >
+                        {fmt(com.amount)}
+                      </Text>
+
+                      {com.isSkipped ? (
+                        <View
+                          style={{
+                            backgroundColor: c.mutedForeground + "22",
+                            borderRadius: 8,
+                            paddingHorizontal: 10,
+                            paddingVertical: 4,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: c.mutedForeground,
+                              fontWeight: "700",
+                              fontSize: 11,
+                            }}
+                          >
+                            SKIPPED
+                          </Text>
+                        </View>
+                      ) : (
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                          <TouchableOpacity
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              app.skipCommitment(com.id);
+                            }}
+                            style={{
+                              backgroundColor: c.surfaceElevated,
+                              borderRadius: 8,
+                              paddingHorizontal: 10,
+                              paddingVertical: 4,
+                              borderWidth: 1,
+                              borderColor: c.border,
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Text
+                              style={{
+                                color: c.textSecondary,
+                                fontWeight: "700",
+                                fontSize: 11,
+                              }}
+                            >
+                              Skip
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              app.markCommitmentPaid(com.id);
+                            }}
+                            style={{
+                              backgroundColor: c.income + "22",
+                              borderRadius: 8,
+                              paddingHorizontal: 10,
+                              paddingVertical: 4,
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Text
+                              style={{
+                                color: c.income,
+                                fontWeight: "700",
+                                fontSize: 11,
+                              }}
+                            >
+                              Mark Paid
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </View>
+
+        {/* Recent Transactions */}
+        <View>
+          <SectionHeader
+            title="Recent Transactions"
+            onAction={() => app.setActiveTab("all_transactions")}
+            actionLabel="See All"
+          />
+          {recentTxs.length === 0 ? (
+            <View
+              style={{
+                backgroundColor: c.card,
+                borderRadius: c.radius,
+                padding: 24,
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: c.cardBorder,
+              }}
+            >
+              <Text style={{ color: c.mutedForeground, fontSize: 14 }}>
+                No transactions this month
+              </Text>
+            </View>
+          ) : (
+            recentTxs.map((tx) => {
+              const txColor =
+                tx.type === "INCOME"
+                  ? c.income
+                  : tx.type === "EXPENSE"
+                    ? c.expense
+                    : c.transfer;
+              const txSign =
+                tx.type === "INCOME" ? "+" : tx.type === "EXPENSE" ? "−" : "→";
+              return (
+                <TouchableOpacity
+                  key={tx.id}
+                  onPress={() => app.openTxModal(tx)}
+                  style={{
+                    backgroundColor: c.card,
+                    borderRadius: c.radius,
+                    padding: 14,
+                    marginBottom: 8,
+                    borderWidth: 1,
+                    borderColor: c.cardBorder,
+                    flexDirection: "row",
+                    alignItems: "center",
+                  }}
+                  activeOpacity={0.75}
+                >
+                  <View
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: txColor + "22",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: 12,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: txColor,
+                        fontWeight: "700",
+                        fontSize: 13,
+                      }}
+                    >
+                      {txSign}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{ color: c.text, fontSize: 14, fontWeight: "600" }}
+                    >
+                      {tx.note || tx.category}
+                    </Text>
+                    <Text
+                      style={{
+                        color: c.textSecondary,
+                        fontSize: 12,
+                        marginTop: 1,
+                      }}
+                    >
+                      {tx.date} · {tx.category}
+                    </Text>
+                  </View>
+                  <Text
+                    style={{ color: txColor, fontWeight: "700", fontSize: 14 }}
+                  >
+                    {txSign}
+                    {fmt(tx.amount)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </View>
+      </ScrollView>
+
+      <TouchableOpacity
+        onPress={() => app.openTxModal()}
+        style={{
+          position: "absolute",
+          bottom: 110,
+          right: 16,
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: c.primary,
+          alignItems: "center",
+          justifyContent: "center",
+          shadowColor: "#000",
+          shadowOpacity: 0.3,
+          shadowRadius: 4,
+          shadowOffset: { width: 0, height: 2 },
+          elevation: 5,
+          zIndex: 10,
+        }}
+      >
+        <Feather name="plus" size={24} color="#fff" />
+      </TouchableOpacity>
+    </SafeAreaView>
+  );
+}

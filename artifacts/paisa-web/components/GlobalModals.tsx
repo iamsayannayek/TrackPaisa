@@ -18,6 +18,7 @@ import { calculateNextDate } from "@/context/AppContext";
 import { useAppColors } from "@/hooks/useAppColors";
 import SelectPicker, { SelectOption } from "@/components/SelectPicker";
 import DateInput from "@/components/DateInput";
+import AmountInput from "@/components/AmountInput";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 
 // ---- Shared helpers ----
@@ -229,9 +230,24 @@ function DeleteBtn({ onPress }: { onPress: () => void }) {
 
 // ColorPicker and icon option constants (unchanged from original)
 const COLORS = [
-  "#3b82f6","#6366f1","#8b5cf6","#a855f7","#ec4899","#f43f5e",
-  "#ef4444","#f97316","#f59e0b","#eab308","#84cc16","#22c55e",
-  "#10b981","#14b8a6","#06b6d4","#0ea5e9","#64748b","#334155",
+  "#3b82f6",
+  "#6366f1",
+  "#8b5cf6",
+  "#a855f7",
+  "#ec4899",
+  "#f43f5e",
+  "#ef4444",
+  "#f97316",
+  "#f59e0b",
+  "#eab308",
+  "#84cc16",
+  "#22c55e",
+  "#10b981",
+  "#14b8a6",
+  "#06b6d4",
+  "#0ea5e9",
+  "#64748b",
+  "#334155",
 ];
 
 function ColorPicker({
@@ -286,9 +302,19 @@ const BUDGET_ICON_OPTIONS: SelectOption[] = [
 ];
 
 const EXPENSE_CATEGORIES = [
-  "Food & Dining","Transport","Shopping/Personal","Bills & Utilities",
-  "Family","Rent / EMI","Health","Education","Entertainment","Travel",
-  "Investment / Transfer","Commitment","Others",
+  "Food & Dining",
+  "Transport",
+  "Shopping/Personal",
+  "Bills & Utilities",
+  "Family",
+  "Rent / EMI",
+  "Health",
+  "Education",
+  "Entertainment",
+  "Travel",
+  "Investment / Transfer",
+  "Commitment",
+  "Others",
 ];
 
 // ---- Transaction Modal ----
@@ -297,28 +323,6 @@ export function TxModal() {
   const c = useAppColors();
   const form = app.txForm;
   const set = app.setTxForm;
-
-  // Local decimal-safe amount display
-  const [amountText, setAmountText] = useState(
-    form.amount ? String(form.amount) : "",
-  );
-
-  // Reset local amount text when modal opens/closes
-  useEffect(() => {
-    setAmountText(form.amount ? String(form.amount) : "");
-  }, [app.isTxModalOpen]);
-
-  const handleAmountChange = (v: string) => {
-    // Allow: digits, one dot, minus prefix
-    const cleaned = v.replace(/[^0-9.]/g, "");
-    setAmountText(cleaned);
-    const num = parseFloat(cleaned);
-    if (!isNaN(num)) {
-      set((p) => ({ ...p, amount: num }));
-    } else if (cleaned === "" || cleaned === ".") {
-      set((p) => ({ ...p, amount: 0 }));
-    }
-  };
 
   const txTypes: ("INCOME" | "EXPENSE" | "TRANSFER")[] = [
     "INCOME",
@@ -341,11 +345,14 @@ export function TxModal() {
       group: "Investments",
     })),
   ];
-  const catOptions: SelectOption[] = EXPENSE_CATEGORIES.map((cat) => ({
+  const dynamicCategories = Array.from(
+    new Set([...app.budgets.map((b) => b.category), ...EXPENSE_CATEGORIES]),
+  ).sort();
+
+  const catOptions: SelectOption[] = dynamicCategories.map((cat) => ({
     value: cat,
     label: cat,
   }));
-
   return (
     <AppModal
       visible={app.isTxModalOpen}
@@ -387,12 +394,11 @@ export function TxModal() {
         ))}
       </View>
 
-      <Field label="Amount (₹)">
-        <StyledInput
-          value={amountText}
-          onChangeText={handleAmountChange}
+      <Field label="Amount">
+        <AmountInput
+          value={form.amount}
+          onChangeAmount={(v) => set((p) => ({ ...p, amount: v }))}
           placeholder="0.00"
-          keyboardType="decimal-pad"
         />
       </Field>
 
@@ -492,28 +498,9 @@ export function AccountModal() {
         </Col>
         <Col>
           <Field label="Balance (₹)">
-            <StyledInput
-              value={
-                form.balance !== undefined && form.balance !== 0
-                  ? form.balance.toString()
-                  : ""
-              }
-              onChangeText={(v) => {
-                if (v === "") {
-                  set((p) => ({ ...p, balance: 0 }));
-                  return;
-                }
-                if (v === "-" || v.endsWith(".")) {
-                  set((p) => ({ ...p, balance: v as any }));
-                  return;
-                }
-                const cleanText = v.replace(/[^0-9.-]/g, "");
-                const num = parseFloat(cleanText);
-                set((p) => ({ ...p, balance: isNaN(num) ? 0 : num }));
-              }}
-              keyboardType={
-                Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"
-              }
+            <AmountInput
+              value={form.balance}
+              onChangeAmount={(v) => set((p) => ({ ...p, balance: v }))}
               placeholder="0"
             />
           </Field>
@@ -524,24 +511,18 @@ export function AccountModal() {
         <Row>
           <Col>
             <Field label="Bank Limit (₹)">
-              <StyledInput
-                value={form.bankLimit ? String(form.bankLimit) : ""}
-                onChangeText={(v) =>
-                  set((p) => ({ ...p, bankLimit: Number(v) || 0 }))
-                }
-                keyboardType="decimal-pad"
+              <AmountInput
+                value={form.bankLimit}
+                onChangeAmount={(v) => set((p) => ({ ...p, bankLimit: v }))}
                 placeholder="0"
               />
             </Field>
           </Col>
           <Col>
             <Field label="Self Limit (₹)">
-              <StyledInput
-                value={form.selfLimit ? String(form.selfLimit) : ""}
-                onChangeText={(v) =>
-                  set((p) => ({ ...p, selfLimit: Number(v) || 0 }))
-                }
-                keyboardType="decimal-pad"
+              <AmountInput
+                value={form.selfLimit}
+                onChangeAmount={(v) => set((p) => ({ ...p, selfLimit: v }))}
                 placeholder="0"
               />
             </Field>
@@ -601,10 +582,9 @@ export function BudgetModal() {
         />
       </Field>
       <Field label="Monthly Limit (₹)">
-        <StyledInput
-          value={form.limit ? String(form.limit) : ""}
-          onChangeText={(v) => set((p) => ({ ...p, limit: Number(v) || 0 }))}
-          keyboardType="decimal-pad"
+        <AmountInput
+          value={form.limit}
+          onChangeAmount={(v) => set((p) => ({ ...p, limit: v }))}
           placeholder="0"
         />
       </Field>
@@ -635,26 +615,6 @@ export function CommitmentModal() {
   const app = useApp();
   const form = app.commitmentForm;
   const set = app.setCommitmentForm;
-
-  // Local decimal-safe amount display
-  const [amountText, setAmountText] = useState(
-    form.amount ? String(form.amount) : "",
-  );
-
-  useEffect(() => {
-    setAmountText(form.amount ? String(form.amount) : "");
-  }, [app.isCommitmentModalOpen]);
-
-  const handleAmountChange = (v: string) => {
-    const cleaned = v.replace(/[^0-9.]/g, "");
-    setAmountText(cleaned);
-    const num = parseFloat(cleaned);
-    if (!isNaN(num)) {
-      set((p) => ({ ...p, amount: num }));
-    } else {
-      set((p) => ({ ...p, amount: 0 }));
-    }
-  };
 
   const accOptions: SelectOption[] = app.accounts.map((a) => ({
     value: a.id,
@@ -696,10 +656,9 @@ export function CommitmentModal() {
       <Row>
         <Col>
           <Field label="Amount (₹)">
-            <StyledInput
-              value={amountText}
-              onChangeText={handleAmountChange}
-              keyboardType="decimal-pad"
+            <AmountInput
+              value={form.amount}
+              onChangeAmount={(v) => set((p) => ({ ...p, amount: v }))}
               placeholder="0.00"
             />
           </Field>
@@ -773,24 +732,18 @@ export function GoalModal() {
       <Row>
         <Col>
           <Field label="Target Amount (₹)">
-            <StyledInput
-              value={form.target ? String(form.target) : ""}
-              onChangeText={(v) =>
-                set((p) => ({ ...p, target: Number(v) || 0 }))
-              }
-              keyboardType="decimal-pad"
+            <AmountInput
+              value={form.target}
+              onChangeAmount={(v) => set((p) => ({ ...p, target: v }))}
               placeholder="0"
             />
           </Field>
         </Col>
         <Col>
           <Field label="Current Saved (₹)">
-            <StyledInput
-              value={form.current ? String(form.current) : ""}
-              onChangeText={(v) =>
-                set((p) => ({ ...p, current: Number(v) || 0 }))
-              }
-              keyboardType="decimal-pad"
+            <AmountInput
+              value={form.current}
+              onChangeAmount={(v) => set((p) => ({ ...p, current: v }))}
               placeholder="0"
             />
           </Field>
@@ -919,21 +872,10 @@ export function InvestmentModal() {
       <Row>
         <Col>
           <Field label="Contribution (₹)">
-            <StyledInput
-              value={
-                form.monthlyContribution
-                  ? String(form.monthlyContribution)
-                  : ""
-              }
-              onChangeText={(v) =>
-                set((p) => ({
-                  ...p,
-                  monthlyContribution:
-                    Number(v.replace(/[^0-9.]/g, "")) || 0,
-                }))
-              }
-              keyboardType={
-                Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"
+            <AmountInput
+              value={form.monthlyContribution}
+              onChangeAmount={(v) =>
+                set((p) => ({ ...p, monthlyContribution: v }))
               }
               placeholder="0"
             />
@@ -941,17 +883,9 @@ export function InvestmentModal() {
         </Col>
         <Col>
           <Field label="Total Invested (₹)">
-            <StyledInput
-              value={form.totalInvested ? String(form.totalInvested) : ""}
-              onChangeText={(v) =>
-                set((p) => ({
-                  ...p,
-                  totalInvested: Number(v.replace(/[^0-9.]/g, "")) || 0,
-                }))
-              }
-              keyboardType={
-                Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"
-              }
+            <AmountInput
+              value={form.totalInvested}
+              onChangeAmount={(v) => set((p) => ({ ...p, totalInvested: v }))}
               placeholder="0"
             />
           </Field>
@@ -959,17 +893,9 @@ export function InvestmentModal() {
       </Row>
 
       <Field label="Current Value (₹)">
-        <StyledInput
-          value={form.currentValue ? String(form.currentValue) : ""}
-          onChangeText={(v) =>
-            set((p) => ({
-              ...p,
-              currentValue: Number(v.replace(/[^0-9.]/g, "")) || 0,
-            }))
-          }
-          keyboardType={
-            Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"
-          }
+        <AmountInput
+          value={form.currentValue}
+          onChangeAmount={(v) => set((p) => ({ ...p, currentValue: v }))}
           placeholder="0"
         />
       </Field>
@@ -978,31 +904,20 @@ export function InvestmentModal() {
         <Row>
           <Col>
             <Field label="Interest Rate (%)">
-              <StyledInput
-                value={form.interestRate ? String(form.interestRate) : ""}
-                onChangeText={(v) =>
-                  set((p) => ({
-                    ...p,
-                    interestRate: Number(v.replace(/[^0-9.]/g, "")) || 0,
-                  }))
-                }
-                keyboardType="decimal-pad"
+              <AmountInput
+                value={form.interestRate}
+                onChangeAmount={(v) => set((p) => ({ ...p, interestRate: v }))}
                 placeholder="7.5"
               />
             </Field>
           </Col>
           <Col>
             <Field label="Duration (Days)">
-              <StyledInput
-                value={form.durationDays ? String(form.durationDays) : ""}
-                onChangeText={(v) =>
-                  set((p) => ({
-                    ...p,
-                    durationDays: Number(v.replace(/[^0-9]/g, "")) || 0,
-                  }))
-                }
-                keyboardType="numeric"
+              <AmountInput
+                value={form.durationDays}
+                onChangeAmount={(v) => set((p) => ({ ...p, durationDays: v }))}
                 placeholder="365"
+                allowDecimals={false}
               />
             </Field>
           </Col>
@@ -1014,31 +929,21 @@ export function InvestmentModal() {
           <Row>
             <Col>
               <Field label="Tenure (Years)">
-                <StyledInput
-                  value={form.tenureYears?.toString() || ""}
-                  onChangeText={(v) =>
-                    set((p) => ({
-                      ...p,
-                      tenureYears: Number(v.replace(/[^0-9]/g, "")) || 0,
-                    }))
-                  }
-                  keyboardType="numeric"
+                <AmountInput
+                  value={form.tenureYears}
+                  onChangeAmount={(v) => set((p) => ({ ...p, tenureYears: v }))}
                   placeholder="e.g. 15"
+                  allowDecimals={false}
                 />
               </Field>
             </Col>
             <Col>
               <Field label={`Paid (${periodLabel})`}>
-                <StyledInput
-                  value={form.paidCount?.toString() || ""}
-                  onChangeText={(v) =>
-                    set((p) => ({
-                      ...p,
-                      paidCount: Number(v.replace(/[^0-9]/g, "")) || 0,
-                    }))
-                  }
-                  keyboardType="numeric"
+                <AmountInput
+                  value={form.paidCount}
+                  onChangeAmount={(v) => set((p) => ({ ...p, paidCount: v }))}
                   placeholder="e.g. 1"
+                  allowDecimals={false}
                 />
               </Field>
             </Col>

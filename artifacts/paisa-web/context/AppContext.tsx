@@ -543,6 +543,16 @@ const SEED_TASKS: MonthEndTask[] = [
   },
 ];
 
+// --- HELPERS & Validation ---
+function uid(): string {
+  return Date.now().toString() + Math.random().toString(36).substr(2, 9);
+}
+
+// Ensure numeric amounts are never negative or NaN before database persistence.
+export const isValidAmount = (val: number | undefined): boolean => {
+  return typeof val === "number" && !isNaN(val) && val >= 0;
+};
+
 // --- CONTEXT ---
 export const AppContext = createContext<AppState | null>(null);
 
@@ -550,10 +560,6 @@ export function useApp() {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error("useApp must be used within AppProvider");
   return ctx;
-}
-
-function uid(): string {
-  return Date.now().toString() + Math.random().toString(36).substr(2, 9);
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -819,7 +825,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsTxModalOpen(true);
   };
   const closeTxModal = () => setIsTxModalOpen(false);
+
   const handleSaveTx = () => {
+    // Protection Guard
+    if (!isValidAmount(txForm.amount)) return;
+
     if (editingTx) {
       updateTransaction(editingTx.id, txForm as Partial<Transaction>);
     } else if (txForm.amount && txForm.sourceId) {
@@ -827,6 +837,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setIsTxModalOpen(false);
   };
+
   const handleDeleteTx = () => {
     if (editingTx) {
       deleteTransaction(editingTx.id);
@@ -838,7 +849,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const openAccountModal = (acc?: Account) => {
     if (acc) {
       setEditingAcc(acc);
-      setAccForm(acc);
+      // Safely ensure edit forms receive the absolute positive value initially
+      setAccForm({ ...acc, balance: Math.abs(acc.balance) });
     } else {
       setEditingAcc(undefined);
       setAccForm({
@@ -853,7 +865,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsAccModalOpen(true);
   };
   const closeAccModal = () => setIsAccModalOpen(false);
+
   const handleSaveAccount = () => {
+    // Protection Guards
+    if (!isValidAmount(accForm.balance)) return;
+    if (accForm.bankLimit !== undefined && !isValidAmount(accForm.bankLimit))
+      return;
+    if (accForm.selfLimit !== undefined && !isValidAmount(accForm.selfLimit))
+      return;
+
     const rawBalance = accForm.balance || 0;
     const finalBalance =
       accForm.type === "CREDIT_CARD"
@@ -877,6 +897,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     setIsAccModalOpen(false);
   };
+
   const handleDeleteAccount = () => {
     if (editingAcc) {
       setAccounts((prev) => prev.filter((a) => a.id !== editingAcc.id));
@@ -903,21 +924,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
   const closeBudgetModal = () => setIsBudgetModalOpen(false);
 
-  // PART 2 FIX: When category is renamed, migrate all matching transactions
   const handleSaveBudget = () => {
+    // 1. Amount Validation Guard
+    if (!isValidAmount(budgetForm.limit)) return;
+
     if (editingBudget) {
       const oldCategory = editingBudget.category;
       const newCategory = budgetForm.category ?? editingBudget.category;
-      const categoryChanged =
+      const isRename =
         oldCategory && newCategory && oldCategory !== newCategory;
 
+      // Extract color/icon to sync across all months
+      const newColor = budgetForm.color ?? editingBudget.color;
+      const newIcon = budgetForm.icon ?? editingBudget.icon;
+
+      // 2. Cascade update to ALL budgets (past, present, future)
       setBudgets((prev) =>
-        prev.map((x) =>
-          x.id === editingBudget.id ? ({ ...x, ...budgetForm } as Budget) : x,
-        ),
+        prev.map((b) => {
+          if (b.id === editingBudget.id) {
+            // Apply full edit to the targeted month's budget
+            return { ...b, ...budgetForm } as Budget;
+          }
+          if (b.category === oldCategory) {
+            // Cascade naming, icon, and color changes to historical/future months
+            // This prevents the dashboard from showing split variations of the same category
+            return {
+              ...b,
+              category: newCategory,
+              color: newColor,
+              icon: newIcon,
+            };
+          }
+          return b;
+        }),
       );
 
-      if (categoryChanged) {
+      // 3. Cascade rename to ALL existing transactions
+      if (isRename) {
         setTransactions((prev) =>
           prev.map((t) =>
             t.category === oldCategory ? { ...t, category: newCategory } : t,
@@ -925,8 +968,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         );
       }
     } else {
+      // Create new budget
       setBudgets((prev) => [...prev, { ...budgetForm, id: uid() } as Budget]);
     }
+
     setIsBudgetModalOpen(false);
   };
 
@@ -966,7 +1011,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsCommitmentModalOpen(true);
   };
   const closeCommitmentModal = () => setIsCommitmentModalOpen(false);
+
   const handleSaveCommitment = () => {
+    // Protection Guard
+    if (!isValidAmount(commitmentForm.amount)) return;
+
     if (editingCommitment) {
       setCommitments((prev) =>
         prev.map((x) =>
@@ -983,6 +1032,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setIsCommitmentModalOpen(false);
   };
+
   const handleDeleteCommitment = () => {
     if (editingCommitment) {
       setCommitments((prev) =>
@@ -1050,7 +1100,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // PART 11 + 12: Skip with undo capability and auto-reschedule
   const skipCommitment = (id: string) => {
     const c = commitments.find((x) => x.id === id);
     if (!c) return;
@@ -1068,7 +1117,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         x.id === id ? { ...x, isSkipped: true } : x,
       );
 
-      // PART 12: Auto-create next period commitment if autoSchedule is on
       if (destInvestment?.autoSchedule && newNextDate) {
         const nextMonth = newNextDate.substring(0, 7);
         const alreadyExists = updated.some(
@@ -1115,12 +1163,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // PART 11: Undo a skipped commitment (if still in current month & future)
   const undoCommitment = (id: string) => {
     setCommitments((prev) =>
       prev.map((x) => (x.id === id ? { ...x, isSkipped: false } : x)),
     );
-    // Optionally reverse the skippedCount on linked investment
     const c = commitments.find((x) => x.id === id);
     if (c?.destId) {
       setInvestments((prev) =>
@@ -1179,9 +1225,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
     setAccForm({ type: "BANK", color: "#1d4ed8", icon: "Landmark" });
     setBudgetForm({ color: "#3b82f6", icon: "Wallet", month: resetMonth });
-    setCommitmentForm({ date: new Date().toISOString().split("T")[0], sourceId: "" });
+    setCommitmentForm({
+      date: new Date().toISOString().split("T")[0],
+      sourceId: "",
+    });
     setGoalForm({});
-    setInvForm({ treatAsExpense: false, type: "MF", frequency: "Monthly", showReturns: true });
+    setInvForm({
+      treatAsExpense: false,
+      type: "MF",
+      frequency: "Monthly",
+      showReturns: true,
+    });
     setTaskForm({ text: "" });
   };
 
@@ -1203,7 +1257,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsGoalModalOpen(true);
   };
   const closeGoalModal = () => setIsGoalModalOpen(false);
+
   const handleSaveGoal = () => {
+    // Protection Guards
+    if (!isValidAmount(goalForm.target)) return;
+    if (goalForm.current !== undefined && !isValidAmount(goalForm.current))
+      return;
+
     if (editingGoal) {
       setGoals((prev) =>
         prev.map((x) =>
@@ -1215,6 +1275,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setIsGoalModalOpen(false);
   };
+
   const handleDeleteGoal = () => {
     if (editingGoal) {
       setGoals((prev) => prev.filter((x) => x.id !== editingGoal.id));
@@ -1250,7 +1311,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsInvModalOpen(true);
   };
   const closeInvModal = () => setIsInvModalOpen(false);
+
   const handleSaveInvestment = () => {
+    // Protection Guards for all potential numeric fields in Investments
+    if (!isValidAmount(invForm.monthlyContribution)) return;
+    if (
+      invForm.totalInvested !== undefined &&
+      !isValidAmount(invForm.totalInvested)
+    )
+      return;
+    if (
+      invForm.currentValue !== undefined &&
+      !isValidAmount(invForm.currentValue)
+    )
+      return;
+    if (
+      invForm.interestRate !== undefined &&
+      !isValidAmount(invForm.interestRate)
+    )
+      return;
+    if (
+      invForm.durationDays !== undefined &&
+      !isValidAmount(invForm.durationDays)
+    )
+      return;
+    if (
+      invForm.tenureYears !== undefined &&
+      !isValidAmount(invForm.tenureYears)
+    )
+      return;
+    if (invForm.paidCount !== undefined && !isValidAmount(invForm.paidCount))
+      return;
+
     if (editingInv) {
       setInvestments((prev) =>
         prev.map((x) =>
@@ -1265,6 +1357,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setIsInvModalOpen(false);
   };
+
   const handleDeleteInvestment = () => {
     if (editingInv) {
       setInvestments((prev) => prev.filter((x) => x.id !== editingInv.id));
@@ -1284,6 +1377,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsTaskModalOpen(true);
   };
   const closeTaskModal = () => setIsTaskModalOpen(false);
+
   const handleSaveTask = () => {
     if (editingTask) {
       setMonthEndTasks((prev) =>
@@ -1299,12 +1393,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setIsTaskModalOpen(false);
   };
+
   const handleDeleteTask = () => {
     if (editingTask) {
       setMonthEndTasks((prev) => prev.filter((x) => x.id !== editingTask.id));
       setIsTaskModalOpen(false);
     }
   };
+
   const toggleMonthEndTask = (id: string) => {
     setMonthEndTasks((prev) =>
       prev.map((x) =>
@@ -1313,7 +1409,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
-  // PART 15: Export all data as JSON string
   const exportData = (): string => {
     return JSON.stringify(
       {
@@ -1333,7 +1428,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
-  // PART 15: Import data from JSON backup
   const importData = (json: string): boolean => {
     try {
       const data = JSON.parse(json);
@@ -1441,13 +1535,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
-// PART 8: Complete frequency engine — Daily, Weekly, Monthly, Quarterly, Half-Yearly, Yearly
 export const calculateNextDate = (
   currentDate: string,
   frequency: string,
 ): string => {
   if (!currentDate) return "";
-  // Use noon UTC to avoid DST boundary bugs
   const d = new Date(currentDate + "T12:00:00Z");
   if (!isFinite(d.getTime())) return "";
   switch (frequency) {

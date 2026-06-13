@@ -1,0 +1,1143 @@
+# Finance Tracker App — Complete Production Audit, Bug Fixes, Modernization & Feature Enhancement
+
+You are working on an existing Expo + React Native Finance Tracker application.
+
+This is NOT a greenfield project.
+
+Before making any changes, perform a full codebase audit and identify the actual implementation details causing each issue.
+
+Do NOT provide generic recommendations.
+
+Analyze the existing architecture, data flow, models, storage, state management, and UI components before implementing fixes.
+
+All solutions must be production-ready, scalable, reusable, and maintainable.
+
+Preserve existing architecture whenever possible.
+
+---
+
+# PRIMARY OBJECTIVES
+
+The application should evolve into a modern fintech-style personal finance management app with:
+
+* Professional UI/UX
+* Data integrity
+* Reusable architecture
+* Modern forms
+* Better profile management
+* Theme support
+* Data backup and restore
+* Improved dashboard experience
+* Better investment automation
+* Better budget tracking
+* Better date handling
+
+---
+
+# PART 1 — DECIMAL AMOUNT BUG
+
+## Current Problem
+
+Decimal amounts are being truncated.
+
+Examples:
+
+12.34 → 12
+
+99.99 → 99
+
+1500.75 → 1500
+
+---
+
+## Investigation Required
+
+Analyze:
+
+### Transaction Model
+
+* Transaction interface
+* Transaction types
+* Amount field definition
+
+### Forms
+
+* Create Transaction
+* Edit Transaction
+
+### Validation
+
+* Amount validation
+
+### Storage
+
+* AsyncStorage
+* Serialization
+
+### Parsing
+
+Search entire project for:
+
+parseInt()
+
+Math.floor()
+
+Number()
+
+toFixed()
+
+or any conversion causing truncation.
+
+---
+
+## Expected Result
+
+Amounts must preserve decimals throughout:
+
+* Create
+* Edit
+* Save
+* Load
+* Dashboard
+* Reports
+* Charts
+* Statistics
+
+---
+
+# PART 2 — BUDGET RENAME DATA INTEGRITY BUG
+
+## Current Problem
+
+Budget:
+
+Transportation
+
+renamed to:
+
+🚘 Transportation
+
+creates a completely new category.
+
+---
+
+## Resulting Problems
+
+* Spending becomes incorrect
+* Budget totals become incorrect
+* Progress bars break
+* Statistics become incorrect
+* Transactions lose association
+
+---
+
+## Investigation Required
+
+Analyze:
+
+### Budget Model
+
+* Interface
+* ID generation
+* Category storage
+
+### Budget Edit Flow
+
+* openBudgetModal()
+* editBudget()
+* saveBudget()
+* updateBudget()
+
+### Transaction Relationships
+
+Determine whether transactions reference:
+
+categoryName
+
+instead of:
+
+budgetId
+
+---
+
+## Expected Result
+
+When category display names change:
+
+Transportation → 🚘 Transportation
+
+the application must:
+
+* Preserve budget ID
+* Preserve history
+* Preserve calculations
+* Update references correctly
+* Update dashboard
+* Update reports
+* Update charts
+
+---
+
+# PART 3 — GLOBAL DATE INPUT MODERNIZATION
+
+## Current Problem
+
+Users manually type:
+
+2026-06-11
+
+everywhere.
+
+Poor UX.
+
+---
+
+## Goal
+
+Every date field should support:
+
+### Option 1
+
+Manual Input
+
+### Option 2
+
+Calendar Picker
+
+---
+
+## Scope
+
+Identify every date field in:
+
+### Transactions
+
+Transaction Date
+
+### Commitments
+
+Due Date
+
+Next Payment Date
+
+### Investments
+
+Purchase Date
+
+Last Payment Date
+
+Next Payment Date
+
+Maturity Date
+
+### Budgets
+
+All date fields
+
+### Accounts
+
+All date fields
+
+### Future Forms
+
+Reusable solution required.
+
+---
+
+## Architecture Requirement
+
+Create reusable component:
+
+DateInput.tsx
+
+or
+
+DatePickerField.tsx
+
+No duplicate implementations.
+
+---
+
+# PART 4 — SMART DATE INPUT SYSTEM
+
+Implement a premium banking-style date field.
+
+---
+
+## Auto Formatting
+
+User types:
+
+20260611
+
+Display:
+
+2026-06-11
+
+---
+
+## Progressive Formatting
+
+Examples:
+
+2026 → 2026-
+
+20260 → 2026-0
+
+202606 → 2026-06-
+
+2026061 → 2026-06-1
+
+20260611 → 2026-06-11
+
+---
+
+## Auto Padding
+
+Examples:
+
+2026-6-5
+
+becomes
+
+2026-06-05
+
+---
+
+## Standardized Storage
+
+Always save:
+
+YYYY-MM-DD
+
+regardless of input format.
+
+---
+
+# PART 5 — ADVANCED DATE UX
+
+Implement premium fintech behavior.
+
+---
+
+## Progressive Placeholder
+
+Initial:
+
+YYYY-MM-DD
+
+After entering:
+
+2026
+
+Display:
+
+2026-MM-DD
+
+After entering:
+
+202612
+
+Display:
+
+2026-12-DD
+
+After entering:
+
+20261226
+
+Display:
+
+2026-12-26
+
+---
+
+## Segment Validation
+
+Validate:
+
+### Year
+
+Configurable range
+
+### Month
+
+01–12
+
+### Day
+
+Month-aware
+
+Leap-year aware
+
+---
+
+## Real-Time Validation
+
+Invalid month:
+
+2026-13-DD
+
+Month turns red.
+
+---
+
+## Month-Aware Day Validation
+
+Invalid:
+
+2026-04-31
+
+2026-02-30
+
+2026-02-29
+
+Valid:
+
+2028-02-29
+
+---
+
+## Error Messages
+
+Examples:
+
+Invalid month. Please enter 01–12.
+
+Invalid day for selected month.
+
+February 2026 contains only 28 days.
+
+---
+
+# PART 6 — DUPLICATE NEXT PAYMENT DATE FIELD
+
+## Current Problem
+
+Investment Create/Edit form shows:
+
+Next Payment Date
+
+Next Payment Date
+
+twice.
+
+---
+
+## Investigation Required
+
+Analyze:
+
+* Investment Form
+* Create Modal
+* Edit Modal
+* Shared Components
+* Date Components
+
+Determine:
+
+* Why duplicate rendering occurs
+* Which component renders twice
+* Which component should remain
+
+---
+
+## Requirement
+
+Only remove duplicate UI.
+
+Do NOT modify:
+
+* Business logic
+* State
+* Validation
+* Scheduling
+* Storage
+
+---
+
+# PART 7 — INVESTMENT AUTO-SCHEDULING ENGINE
+
+## Current Problem
+
+Investments calculate next payment date.
+
+But no commitments are created.
+
+---
+
+## Example
+
+Investment:
+
+PPF
+
+Monthly
+
+₹500
+
+Next Payment:
+
+2026-07-12
+
+Expected Commitment:
+
+PPF Premium
+
+₹500
+
+Due: 2026-07-12
+
+Status: Pending
+
+---
+
+## Required
+
+Automatically generate commitments.
+
+Appear in:
+
+* Dashboard
+* Upcoming Commitments
+* Commitments Screen
+* Statistics
+* Counts
+
+---
+
+## Investigation Required
+
+Analyze:
+
+### Investment Model
+
+frequency
+
+lastPaymentDate
+
+nextPaymentDate
+
+autoSchedule flag
+
+### Commitment Model
+
+creation logic
+
+update logic
+
+sync logic
+
+---
+
+# PART 8 — FREQUENCY ENGINE VERIFICATION
+
+Verify:
+
+Daily → +1 day
+
+Weekly → +7 days
+
+Monthly → +1 month
+
+Quarterly → +3 months
+
+Half-Yearly → +6 months
+
+Yearly → +12 months
+
+Correct edge cases required.
+
+---
+
+# PART 9 — AUTO NEXT PAYMENT CALCULATION
+
+When:
+
+Frequency
+
+and
+
+Last Payment Date
+
+change,
+
+automatically calculate:
+
+Next Payment Date
+
+immediately.
+
+---
+
+## Manual Override
+
+Users can still edit generated date manually.
+
+---
+
+# PART 10 — DASHBOARD UPCOMING COMMITMENTS FILTER
+
+## Current Problem
+
+Future months clutter dashboard.
+
+---
+
+## Expected
+
+Dashboard should display only commitments due in the active/current month.
+
+Example:
+
+June 2026
+
+Show:
+
+2026-06-05
+
+2026-06-12
+
+2026-06-30
+
+Hide:
+
+2026-07-05
+
+2026-08-12
+
+2026-09-01
+
+---
+
+# PART 11 — SKIP & UNDO SYSTEM
+
+## Current Problem
+
+Skipped commitments cannot be restored.
+
+---
+
+## New Logic
+
+If:
+
+status === "Skipped"
+
+AND
+
+dueDate >= today
+
+AND
+
+dueDate belongs to current month
+
+Show:
+
+UNDO
+
+instead of:
+
+SKIPPED
+
+---
+
+## Undo Action
+
+Restore:
+
+Skipped → Pending
+
+Update:
+
+* Dashboard
+* Counts
+* Statistics
+* Upcoming Commitments
+
+---
+
+## Past Due Commitments
+
+Remain:
+
+SKIPPED
+
+No undo available.
+
+---
+
+# PART 12 — AUTO RESCHEDULING AFTER SKIP
+
+Example:
+
+Monthly commitment
+
+Due:
+
+2026-07-12
+
+User presses Skip.
+
+Automatically create:
+
+2026-08-12
+
+Original skipped record remains in history.
+
+New commitment becomes active.
+
+---
+
+# PART 13 — PROFILE SCREEN
+
+Create a dedicated Profile tab.
+
+---
+
+## Features
+
+### Avatar
+
+Upload Profile Photo
+
+### User Details
+
+Full Name
+
+Optional Email
+
+Optional Phone
+
+### Preferences
+
+Theme Selection
+
+### Data Management
+
+Import Data
+
+Export Data
+
+Reset Data
+
+### About App
+
+Version
+
+Build
+
+Developer Info
+
+---
+
+# PART 14 — THEME SYSTEM
+
+Implement complete theme architecture.
+
+---
+
+## Modes
+
+System Default
+
+Light Mode
+
+Dark Mode
+
+Persist selection.
+
+---
+
+## Theme Coverage
+
+Dashboard
+
+Transactions
+
+Budgets
+
+Commitments
+
+Investments
+
+Forms
+
+Date Pickers
+
+Charts
+
+Settings
+
+Profile
+
+Everything must follow theme tokens.
+
+---
+
+# PART 15 — DATA EXPORT & IMPORT
+
+One of the most important features.
+
+Users should never lose data when changing phones.
+
+---
+
+## Data Management Screen
+
+Add:
+
+Export Data
+
+Import Data
+
+Backup Information
+
+Reset Data
+
+---
+
+## Export Formats
+
+CSV
+
+Excel (.xlsx)
+
+JSON Backup
+
+---
+
+## Export Content
+
+Transactions
+
+Budgets
+
+Investments
+
+Commitments
+
+Accounts
+
+Categories
+
+Profile
+
+Settings
+
+---
+
+## Import
+
+Allow restoring previously exported backups.
+
+Validate schema before import.
+
+Handle errors safely.
+
+---
+
+## Requirements
+
+Export example:
+
+FinanceBackup_YYYY-MM-DD.xlsx
+
+FinanceBackup_YYYY-MM-DD.json
+
+---
+
+## Recommended Libraries
+
+expo-document-picker
+
+expo-file-system
+
+xlsx
+
+---
+
+# PART 16 — RESET APPLICATION DATA
+
+Add:
+
+Danger Zone
+
+Reset All Data
+
+---
+
+## Confirmation Dialog
+
+Warn user before deletion.
+
+Delete:
+
+Transactions
+
+Budgets
+
+Investments
+
+Commitments
+
+Accounts
+
+Profile
+
+Settings
+
+---
+
+# PART 17 — DASHBOARD MODERNIZATION
+
+Redesign dashboard to feel like a modern fintech application.
+
+---
+
+## Add
+
+### Monthly Insights
+
+Income
+
+Expenses
+
+Savings
+
+---
+
+### Budget Summary
+
+Progress
+
+Remaining Budget
+
+Alerts
+
+---
+
+### Investment Summary
+
+Total Invested
+
+Upcoming Payments
+
+Returns
+
+---
+
+### Savings Summary
+
+Current Savings
+
+Goals
+
+Progress
+
+---
+
+### Financial Health Score
+
+Score out of 100 based on:
+
+* Savings
+* Budget Discipline
+* Commitment Completion
+* Investment Consistency
+
+---
+
+# PART 18 — SEARCH SYSTEM
+
+Implement global search.
+
+Search across:
+
+Transactions
+
+Budgets
+
+Commitments
+
+Investments
+
+Accounts
+
+Categories
+
+---
+
+# PART 19 — MODERN CHARTS
+
+Replace basic charts with modern visualizations.
+
+Implement:
+
+### Donut Chart
+
+Budget Breakdown
+
+Category Breakdown
+
+Expense Distribution
+
+---
+
+### Area Chart
+
+Monthly Spending Trend
+
+Income vs Expense Trend
+
+Savings Trend
+
+---
+
+### Trend Analytics
+
+Monthly Trend
+
+Category Trend
+
+Investment Growth
+
+Budget Utilization Trend
+
+---
+
+Requirements:
+
+* Smooth animations
+* Dark mode support
+* Light mode support
+* Mobile optimized
+* Consistent with app theme
+
+Use the best charting solution already compatible with the existing Expo architecture.
+
+---
+
+# PART 20 — UI/UX MODERNIZATION
+
+Transform the app into a modern fintech experience.
+
+---
+
+## Upgrade
+
+Dashboard
+
+Transactions
+
+Budgets
+
+Commitments
+
+Investments
+
+Profile
+
+Settings
+
+---
+
+## Design Language
+
+Use:
+
+* Better spacing
+* Better typography
+* Rounded cards
+* Modern shadows
+* Better empty states
+* Smooth interactions
+* Better loading states
+* Better skeleton loaders
+* Better form layouts
+* Better modal design
+
+---
+
+## UX Improvements
+
+Improve:
+
+* Navigation
+* Form usability
+* Data entry speed
+* Accessibility
+* Mobile ergonomics
+
+---
+
+# FINAL DELIVERABLES
+
+Provide:
+
+## 1. Root Cause Analysis
+
+For every issue.
+
+## 2. Affected Files
+
+List all files.
+
+## 3. File-by-File Changes
+
+Exact modifications.
+
+## 4. New Components
+
+Complete code.
+
+## 5. Utility Functions
+
+Complete code.
+
+## 6. Data Migration Notes
+
+If required.
+
+## 7. Installation Commands
+
+Exact commands.
+
+## 8. Testing Checklist
+
+Cover:
+
+* Decimal amounts
+* Budget rename
+* Date picker
+* Date validation
+* Leap years
+* Auto scheduling
+* Dashboard filtering
+* Skip
+* Undo
+* Import
+* Export
+* Theme switching
+* Profile
+* Charts
+* Android
+* iOS
+
+## 9. Performance Review
+
+Identify bottlenecks.
+
+## 10. Architecture Review
+
+Ensure scalability and maintainability.
+
+Important:
+
+* Analyze first, then modify.
+* Do not provide generic advice.
+* Preserve architecture wherever possible.
+* Avoid breaking changes.
+* Prefer ID-based relationships over name-based relationships.
+* Build production-ready implementations only.
+* Explain every root cause before implementing fixes.

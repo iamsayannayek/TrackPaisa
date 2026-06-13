@@ -1,0 +1,981 @@
+Here is a single, professional, highly detailed prompt you can give to Replit AI (or any coding agent) so it fully understands the existing issues, required investigations, architecture constraints, root-cause analysis expectations, and production-ready implementation requirements.
+
+---
+
+# Finance Tracker App – Comprehensive Codebase Audit, Bug Fixes & Feature Enhancements
+
+You are working on an existing Expo + React Native Finance Tracker application.
+
+This is NOT a greenfield implementation.
+
+Your task is to perform a complete codebase analysis, identify root causes, and implement production-ready fixes while preserving the existing architecture, business logic, data models, storage structure, and application behavior wherever possible.
+
+Do not provide generic recommendations.
+
+Analyze the actual implementation and explain exactly where problems exist and why they occur.
+
+---
+
+# PART 1 — Decimal Amount Values Are Being Lost
+
+## Issue
+
+Transaction amounts containing decimals are not being preserved.
+
+### Example
+
+Expected:
+
+```text
+12.34
+99.99
+1500.75
+```
+
+Actual:
+
+```text
+12
+99
+1500
+```
+
+The decimal portion is either:
+
+* Removed while typing
+* Removed during save
+* Removed during update
+* Removed during parsing
+* Removed during display
+
+---
+
+## Investigation Requirements
+
+Analyze:
+
+### Transaction Model
+
+* Transaction interface
+* Transaction type definitions
+* Amount field type
+
+### Form Layer
+
+* Transaction create form
+* Transaction edit form
+* Input handlers
+* Validation logic
+
+### Storage Layer
+
+* AsyncStorage
+* Database layer
+* Serialization logic
+
+### Parsing Logic
+
+Search for:
+
+```ts
+parseInt()
+Math.floor()
+Number()
+toFixed()
+```
+
+or any conversion causing truncation.
+
+---
+
+## Deliverables
+
+Identify:
+
+* Exact file(s)
+* Exact line(s)
+* Exact implementation causing truncation
+
+Implement:
+
+* Proper decimal support
+* Full precision preservation
+* Correct editing behavior
+* Correct dashboard calculations
+* Correct chart calculations
+
+---
+
+# PART 2 — Budget Category Rename Breaks Data Relationships
+
+## Current Behavior
+
+Existing budget:
+
+```text
+Transportation
+```
+
+User edits:
+
+```text
+🚘 Transportation
+```
+
+Application treats it as a new category.
+
+---
+
+## Resulting Problems
+
+### Budget Tracking Breaks
+
+Original:
+
+```text
+Transportation
+```
+
+New:
+
+```text
+🚘 Transportation
+```
+
+Application believes these are different categories.
+
+---
+
+### Transactions Stop Matching
+
+Existing transactions remain linked to:
+
+```text
+Transportation
+```
+
+while budget becomes:
+
+```text
+🚘 Transportation
+```
+
+Result:
+
+* Incorrect spent amount
+* Incorrect remaining amount
+* Incorrect progress
+* Incorrect statistics
+
+---
+
+### Dashboard Inconsistency
+
+Recent Transactions still reference old category.
+
+Budgets reference new category.
+
+---
+
+## Investigation Requirements
+
+Analyze:
+
+### Budget Model
+
+* Budget interface
+* Budget ID generation
+* Category field
+* Storage schema
+
+### Budget Editing Logic
+
+* openBudgetModal()
+* saveBudget()
+* updateBudget()
+* editBudget()
+
+### Transaction Relationships
+
+Determine whether transactions reference:
+
+```ts
+categoryName
+```
+
+instead of:
+
+```ts
+budgetId
+```
+
+---
+
+## Root Cause Analysis
+
+Explain:
+
+Why category names are acting as primary keys.
+
+Why this creates data integrity issues.
+
+---
+
+## Required Fix
+
+When:
+
+```text
+Transportation
+```
+
+becomes:
+
+```text
+🚘 Transportation
+```
+
+the application must:
+
+* Preserve Budget ID
+* Update category display name
+* Update linked transactions
+* Update dashboard
+* Update reports
+* Update charts
+* Preserve spending history
+
+---
+
+# PART 3 — Global Modern Date Input System
+
+## Current Behavior
+
+All date fields require manual typing:
+
+```text
+2026-06-11
+```
+
+---
+
+## Desired Behavior
+
+Every date field should support:
+
+### Option A
+
+Manual typing
+
+### Option B
+
+Calendar picker
+
+---
+
+## Applicable Everywhere
+
+Search the entire codebase and identify all date inputs.
+
+Including:
+
+### Transactions
+
+* Transaction Date
+
+### Commitments
+
+* Due Date
+* Next Payment Date
+
+### Investments
+
+* Purchase Date
+* Maturity Date
+* Last Payment Date
+* Next Payment Date
+
+### Budgets
+
+* Any date field
+
+### Accounts
+
+* Any date field
+
+### Future Forms
+
+Reusable implementation required.
+
+---
+
+## Architecture Requirement
+
+Create a reusable component:
+
+```tsx
+DateInput.tsx
+```
+
+or
+
+```tsx
+DatePickerField.tsx
+```
+
+No duplicate implementations.
+
+---
+
+# PART 4 — Production Date Picker Selection
+
+Analyze and compare:
+
+### Libraries
+
+```text
+@react-native-community/datetimepicker
+react-native-paper-dates
+react-native-date-picker
+```
+
+and any better alternative.
+
+---
+
+## Select One
+
+Explain:
+
+* Why it is best for Expo
+* Android compatibility
+* iOS compatibility
+* Dark mode
+* Light mode
+* Theme support
+* Long-term maintenance
+
+---
+
+## Provide
+
+### Installation Commands
+
+```bash
+npx expo install ...
+```
+
+### Configuration
+
+* app.json
+* plugins
+* Android setup
+* Expo setup
+
+---
+
+# PART 5 — Smart Date Input Formatting
+
+## Auto Separator Insertion
+
+User types:
+
+```text
+20260611
+```
+
+Automatically becomes:
+
+```text
+2026-06-11
+```
+
+---
+
+## Progressive Formatting
+
+Examples:
+
+```text
+2026
+→ 2026-
+
+20260
+→ 2026-0
+
+202606
+→ 2026-06-
+
+2026061
+→ 2026-06-1
+
+20260611
+→ 2026-06-11
+```
+
+---
+
+## Auto Padding
+
+Examples:
+
+```text
+2026-6-5
+```
+
+becomes:
+
+```text
+2026-06-05
+```
+
+---
+
+## Standardized Storage
+
+All dates must save as:
+
+```text
+YYYY-MM-DD
+```
+
+regardless of input style.
+
+---
+
+# PART 6 — Premium Banking-Style Date UX
+
+Enhance reusable DateInput.
+
+---
+
+## Progressive Placeholder Preservation
+
+Initial:
+
+```text
+YYYY-MM-DD
+```
+
+Typing:
+
+```text
+2026
+```
+
+Display:
+
+```text
+2026-MM-DD
+```
+
+Typing:
+
+```text
+202612
+```
+
+Display:
+
+```text
+2026-12-DD
+```
+
+Typing:
+
+```text
+20261226
+```
+
+Display:
+
+```text
+2026-12-26
+```
+
+---
+
+## Segment-Level Validation
+
+Validate independently:
+
+### Year
+
+Configurable range
+
+### Month
+
+```text
+01-12
+```
+
+### Day
+
+Month-aware
+
+Leap-year aware
+
+---
+
+## Real-Time Validation Coloring
+
+Invalid month:
+
+```text
+2026-13-DD
+```
+
+Month segment turns red.
+
+---
+
+## Month-Aware Day Validation
+
+Examples:
+
+Invalid:
+
+```text
+2026-04-31
+2026-02-30
+2026-02-29
+```
+
+Valid:
+
+```text
+2028-02-29
+```
+
+---
+
+## Error Feedback
+
+Examples:
+
+```text
+Invalid month. Please enter 01-12.
+```
+
+```text
+Invalid day for selected month.
+```
+
+```text
+February 2026 contains only 28 days.
+```
+
+---
+
+# PART 7 — Duplicate Next Payment Date Field
+
+## Issue
+
+Investment Create/Edit form shows:
+
+```text
+Next Payment Date
+Next Payment Date
+```
+
+twice.
+
+---
+
+## Investigation
+
+Analyze:
+
+* Investment Form
+* Create Modal
+* Edit Modal
+* Shared Form
+* Reusable Date Components
+
+Determine:
+
+* Why duplicate render occurs
+* Which component renders twice
+* Which field should remain
+
+---
+
+## Requirement
+
+Only remove duplicate UI.
+
+Do NOT change:
+
+* state
+* validation
+* calculations
+* scheduling
+* storage
+
+---
+
+# PART 8 — Investment Auto Scheduling Engine
+
+## Current Issue
+
+Investments calculate next payment date.
+
+But no commitments appear.
+
+---
+
+## Example
+
+Investment:
+
+```text
+PPF
+Monthly
+₹500
+```
+
+Next payment:
+
+```text
+2026-07-12
+```
+
+Expected commitment:
+
+```text
+PPF Premium
+₹500
+2026-07-12
+Pending
+```
+
+---
+
+## Must Appear In
+
+### Dashboard
+
+Upcoming Commitments
+
+### Commitments Screen
+
+All Commitments
+
+### Counts
+
+### Statistics
+
+---
+
+## Investigate
+
+### Investment Model
+
+* frequency
+* lastPaymentDate
+* nextPaymentDate
+* autoSchedule flag
+
+### Commitment Model
+
+* creation logic
+* syncing logic
+
+### Dashboard
+
+* filtering
+* queries
+
+---
+
+## Frequency Engine Validation
+
+Verify:
+
+### Daily
+
++1 day
+
+### Weekly
+
++7 days
+
+### Monthly
+
++1 month
+
+### Quarterly
+
++3 months
+
+### Half-Yearly
+
++6 months
+
+### Yearly
+
++12 months
+
+---
+
+# PART 9 — Next Payment Auto Calculation
+
+When:
+
+```text
+Frequency
+Last Payment Date
+```
+
+change,
+
+auto-generate:
+
+```text
+Next Payment Date
+```
+
+immediately.
+
+---
+
+## Example
+
+Monthly:
+
+```text
+2026-06-12
+```
+
+becomes:
+
+```text
+2026-07-12
+```
+
+---
+
+## Manual Override
+
+User may still edit generated value.
+
+---
+
+# PART 10 — Dashboard Upcoming Commitments Filter
+
+Current:
+
+Shows all future commitments.
+
+---
+
+## Required
+
+Dashboard should only show commitments due in the currently active month.
+
+Example:
+
+Current month:
+
+```text
+June 2026
+```
+
+Show:
+
+```text
+2026-06-05
+2026-06-12
+2026-06-30
+```
+
+Do NOT show:
+
+```text
+2026-07-05
+2026-08-12
+```
+
+---
+
+# PART 11 — Skip + Undo System
+
+## Current
+
+Skipped commitments cannot be restored.
+
+---
+
+## New Logic
+
+If:
+
+```ts
+status === "Skipped"
+```
+
+and:
+
+```ts
+dueDate >= today
+```
+
+and:
+
+```ts
+dueDate belongs to current month
+```
+
+show:
+
+```text
+UNDO
+```
+
+instead of:
+
+```text
+SKIPPED
+```
+
+---
+
+## Undo Action
+
+Restore:
+
+```text
+Skipped → Pending
+```
+
+Update:
+
+* Dashboard
+* Counts
+* Statistics
+* Upcoming Commitments
+
+---
+
+## Past Due Commitments
+
+Keep:
+
+```text
+SKIPPED
+```
+
+No undo allowed.
+
+---
+
+# PART 12 — Skip Auto Rescheduling
+
+Recurring investment commitment skipped.
+
+Example:
+
+```text
+Monthly
+Due: 2026-07-12
+```
+
+User presses:
+
+```text
+Skip
+```
+
+Automatically create:
+
+```text
+2026-08-12
+```
+
+---
+
+## Preserve History
+
+Original skipped commitment remains.
+
+New commitment becomes upcoming.
+
+---
+
+# REQUIRED FINAL OUTPUT FORMAT
+
+Provide:
+
+## 1. Root Cause Analysis
+
+For every issue.
+
+---
+
+## 2. Affected Files
+
+List every file.
+
+---
+
+## 3. Exact Code Changes
+
+File-by-file.
+
+---
+
+## 4. New Components
+
+Complete production-ready code.
+
+---
+
+## 5. Utility Functions
+
+Complete code.
+
+---
+
+## 6. Installation Commands
+
+Exact commands.
+
+---
+
+## 7. Migration Notes
+
+If data migration is required.
+
+---
+
+## 8. Testing Checklist
+
+Cover:
+
+* Decimal amounts
+* Budget rename
+* Date picker
+* Smart date input
+* Validation
+* Leap years
+* Auto scheduling
+* Dashboard filtering
+* Skip
+* Undo
+* Rescheduling
+* Android
+* iOS
+* Dark mode
+* Light mode
+
+---
+
+Important Constraints:
+
+* Analyze the existing codebase before making changes.
+* Preserve architecture whenever possible.
+* Do not redesign unrelated features.
+* Do not introduce breaking changes.
+* Prefer ID-based relationships over display-name relationships.
+* Provide production-ready implementations, not pseudo code.
+* Explain every root cause before proposing fixes.

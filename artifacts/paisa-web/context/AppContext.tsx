@@ -71,7 +71,7 @@ export interface Investment {
   interestRate?: number;
   durationDays?: number;
 
-  // NEW DESCRIPTIVE FIELDS:
+  // Scheduling & tracking
   tenureYears?: number;
   paidCount?: number;
   lastPaymentDate?: string;
@@ -84,6 +84,12 @@ export interface MonthEndTask {
   id: string;
   text: string;
   isCompleted: boolean;
+}
+
+export interface UserProfile {
+  name: string;
+  email: string;
+  phone: string;
 }
 
 // --- MODAL FORM TYPES ---
@@ -126,6 +132,8 @@ export interface AppState extends ModalState {
   investments: Investment[];
   monthEndTasks: MonthEndTask[];
   isLoaded: boolean;
+  profile: UserProfile;
+  setProfile: (p: UserProfile | ((prev: UserProfile) => UserProfile)) => void;
 
   setTxForm: (
     f:
@@ -179,6 +187,7 @@ export interface AppState extends ModalState {
   handleDeleteCommitment: () => void;
   markCommitmentPaid: (id: string) => void;
   skipCommitment: (id: string) => void;
+  undoCommitment: (id: string) => void;
 
   openGoalModal: (g?: Goal) => void;
   closeGoalModal: () => void;
@@ -198,6 +207,8 @@ export interface AppState extends ModalState {
   resetApp: () => void;
 
   addTransaction: (t: Omit<Transaction, "id">) => void;
+  exportData: () => string;
+  importData: (json: string) => boolean;
 }
 
 // --- SEED DATA ---
@@ -402,6 +413,7 @@ const SEED_INVESTMENTS: Investment[] = [
     currentValue: 52300,
     treatAsExpense: false,
     showReturns: true,
+    autoSchedule: true,
   },
   {
     id: "i2",
@@ -413,6 +425,7 @@ const SEED_INVESTMENTS: Investment[] = [
     currentValue: 16100,
     treatAsExpense: false,
     showReturns: false,
+    autoSchedule: true,
   },
   {
     id: "i3",
@@ -424,6 +437,7 @@ const SEED_INVESTMENTS: Investment[] = [
     currentValue: 9500,
     treatAsExpense: true,
     showReturns: false,
+    autoSchedule: true,
   },
 ];
 
@@ -550,6 +564,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   });
+  const [profile, setProfile] = useState<UserProfile>({
+    name: "",
+    email: "",
+    phone: "",
+  });
 
   const [accounts, setAccounts] = useState<Account[]>(SEED_ACCOUNTS);
   const [transactions, setTransactions] =
@@ -626,6 +645,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           "goals",
           "investments",
           "monthEndTasks",
+          "profile",
         ];
         const values = await AsyncStorage.multiGet(keys);
         const map = Object.fromEntries(values.map(([k, v]) => [k, v]));
@@ -637,6 +657,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (map.goals) setGoals(JSON.parse(map.goals));
         if (map.investments) setInvestments(JSON.parse(map.investments));
         if (map.monthEndTasks) setMonthEndTasks(JSON.parse(map.monthEndTasks));
+        if (map.profile) setProfile(JSON.parse(map.profile));
       } catch {}
       setIsLoaded(true);
     })();
@@ -654,6 +675,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ["goals", JSON.stringify(goals)],
       ["investments", JSON.stringify(investments)],
       ["monthEndTasks", JSON.stringify(monthEndTasks)],
+      ["profile", JSON.stringify(profile)],
     ]).catch(() => {});
   }, [
     isDarkMode,
@@ -664,6 +686,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     goals,
     investments,
     monthEndTasks,
+    profile,
     isLoaded,
   ]);
 
@@ -879,24 +902,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsBudgetModalOpen(true);
   };
   const closeBudgetModal = () => setIsBudgetModalOpen(false);
+
+  // PART 2 FIX: When category is renamed, migrate all matching transactions
   const handleSaveBudget = () => {
     if (editingBudget) {
+      const oldCategory = editingBudget.category;
+      const newCategory = budgetForm.category ?? editingBudget.category;
+      const categoryChanged =
+        oldCategory && newCategory && oldCategory !== newCategory;
+
       setBudgets((prev) =>
         prev.map((x) =>
           x.id === editingBudget.id ? ({ ...x, ...budgetForm } as Budget) : x,
         ),
       );
+
+      if (categoryChanged) {
+        setTransactions((prev) =>
+          prev.map((t) =>
+            t.category === oldCategory ? { ...t, category: newCategory } : t,
+          ),
+        );
+      }
     } else {
       setBudgets((prev) => [...prev, { ...budgetForm, id: uid() } as Budget]);
     }
     setIsBudgetModalOpen(false);
   };
+
   const handleDeleteBudget = () => {
     if (editingBudget) {
       setBudgets((prev) => prev.filter((x) => x.id !== editingBudget.id));
       setIsBudgetModalOpen(false);
     }
   };
+
   const copyBudgets = (fromMonth: string, toMonth: string) => {
     const prev = budgets.filter((b) => b.month === fromMonth);
     if (prev.length === 0) return;
@@ -1010,15 +1050,55 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // PART 11 + 12: Skip with undo capability and auto-reschedule
   const skipCommitment = (id: string) => {
     const c = commitments.find((x) => x.id === id);
     if (!c) return;
 
-    setCommitments((prev) =>
-      prev.map((x) => (x.id === id ? { ...x, isSkipped: true } : x)),
-    );
-
     const destInvestment = investments.find((i) => i.id === c.destId);
+    const newNextDate = destInvestment
+      ? calculateNextDate(
+          destInvestment.nextPaymentDate || c.date,
+          destInvestment.frequency || "Monthly",
+        )
+      : "";
+
+    setCommitments((prev) => {
+      const updated = prev.map((x) =>
+        x.id === id ? { ...x, isSkipped: true } : x,
+      );
+
+      // PART 12: Auto-create next period commitment if autoSchedule is on
+      if (destInvestment?.autoSchedule && newNextDate) {
+        const nextMonth = newNextDate.substring(0, 7);
+        const alreadyExists = updated.some(
+          (cm) =>
+            cm.destId === c.destId &&
+            cm.date.substring(0, 7) === nextMonth &&
+            !cm.isSkipped &&
+            !cm.isPaid,
+        );
+        if (!alreadyExists) {
+          const multiplier = destInvestment.treatAsExpense
+            ? 1 + ((destInvestment.skippedCount || 0) + 1)
+            : 1;
+          updated.push({
+            id: uid(),
+            title: c.title,
+            amount: destInvestment.monthlyContribution * multiplier,
+            date: newNextDate,
+            sourceId: c.sourceId,
+            destId: c.destId,
+            linkedBudgetId: c.linkedBudgetId,
+            isPaid: false,
+            isSkipped: false,
+          });
+        }
+      }
+
+      return updated;
+    });
+
     if (destInvestment) {
       setInvestments((prev) =>
         prev.map((inv) => {
@@ -1026,10 +1106,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             return {
               ...inv,
               skippedCount: (inv.skippedCount || 0) + 1,
-              nextPaymentDate: calculateNextDate(
-                inv.nextPaymentDate || c.date,
-                inv.frequency || "Monthly",
-              ),
+              nextPaymentDate: newNextDate || inv.nextPaymentDate,
+            };
+          }
+          return inv;
+        }),
+      );
+    }
+  };
+
+  // PART 11: Undo a skipped commitment (if still in current month & future)
+  const undoCommitment = (id: string) => {
+    setCommitments((prev) =>
+      prev.map((x) => (x.id === id ? { ...x, isSkipped: false } : x)),
+    );
+    // Optionally reverse the skippedCount on linked investment
+    const c = commitments.find((x) => x.id === id);
+    if (c?.destId) {
+      setInvestments((prev) =>
+        prev.map((inv) => {
+          if (inv.id === c.destId && (inv.skippedCount || 0) > 0) {
+            return {
+              ...inv,
+              skippedCount: (inv.skippedCount || 0) - 1,
             };
           }
           return inv;
@@ -1042,13 +1141,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const resetMonth = new Date().toISOString().slice(0, 7);
     try {
       await AsyncStorage.clear();
-    } catch {
-      // ignore failures while clearing storage
-    }
+    } catch {}
 
     setIsDarkMode(true);
     setActiveTab("dashboard");
     setCurrentMonth(resetMonth);
+    setProfile({ name: "", email: "", phone: "" });
 
     setAccounts([]);
     setTransactions([]);
@@ -1079,27 +1177,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       amount: 0,
       date: new Date().toISOString().split("T")[0],
     });
-    setAccForm({
-      type: "BANK",
-      color: "#1d4ed8",
-      icon: "Landmark",
-    });
-    setBudgetForm({
-      color: "#3b82f6",
-      icon: "Wallet",
-      month: resetMonth,
-    });
-    setCommitmentForm({
-      date: new Date().toISOString().split("T")[0],
-      sourceId: "",
-    });
+    setAccForm({ type: "BANK", color: "#1d4ed8", icon: "Landmark" });
+    setBudgetForm({ color: "#3b82f6", icon: "Wallet", month: resetMonth });
+    setCommitmentForm({ date: new Date().toISOString().split("T")[0], sourceId: "" });
     setGoalForm({});
-    setInvForm({
-      treatAsExpense: false,
-      type: "MF",
-      frequency: "Monthly",
-      showReturns: true,
-    });
+    setInvForm({ treatAsExpense: false, type: "MF", frequency: "Monthly", showReturns: true });
     setTaskForm({ text: "" });
   };
 
@@ -1231,6 +1313,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  // PART 15: Export all data as JSON string
+  const exportData = (): string => {
+    return JSON.stringify(
+      {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        accounts,
+        transactions,
+        budgets,
+        commitments,
+        goals,
+        investments,
+        monthEndTasks,
+        profile,
+      },
+      null,
+      2,
+    );
+  };
+
+  // PART 15: Import data from JSON backup
+  const importData = (json: string): boolean => {
+    try {
+      const data = JSON.parse(json);
+      if (!data || typeof data !== "object") return false;
+      if (Array.isArray(data.accounts)) setAccounts(data.accounts);
+      if (Array.isArray(data.transactions)) setTransactions(data.transactions);
+      if (Array.isArray(data.budgets)) setBudgets(data.budgets);
+      if (Array.isArray(data.commitments)) setCommitments(data.commitments);
+      if (Array.isArray(data.goals)) setGoals(data.goals);
+      if (Array.isArray(data.investments)) setInvestments(data.investments);
+      if (Array.isArray(data.monthEndTasks))
+        setMonthEndTasks(data.monthEndTasks);
+      if (data.profile && typeof data.profile === "object")
+        setProfile(data.profile);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const value: AppState = {
     isDarkMode,
     toggleTheme: () => setIsDarkMode((v) => !v),
@@ -1246,6 +1369,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     investments,
     monthEndTasks,
     isLoaded,
+    profile,
+    setProfile,
     isTxModalOpen,
     isAccModalOpen,
     isBudgetModalOpen,
@@ -1293,6 +1418,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     handleDeleteCommitment,
     markCommitmentPaid,
     skipCommitment,
+    undoCommitment,
     resetApp,
     openGoalModal,
     closeGoalModal,
@@ -1308,16 +1434,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     handleDeleteTask,
     toggleMonthEndTask,
     addTransaction,
+    exportData,
+    importData,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
-export const calculateNextDate = (currentDate: string, frequency: string) => {
+// PART 8: Complete frequency engine — Daily, Weekly, Monthly, Quarterly, Half-Yearly, Yearly
+export const calculateNextDate = (
+  currentDate: string,
+  frequency: string,
+): string => {
   if (!currentDate) return "";
-  const d = new Date(currentDate);
-  if (frequency === "Monthly") d.setMonth(d.getMonth() + 1);
-  else if (frequency === "Quarterly") d.setMonth(d.getMonth() + 3);
-  else if (frequency === "Yearly") d.setFullYear(d.getFullYear() + 1);
+  // Use noon UTC to avoid DST boundary bugs
+  const d = new Date(currentDate + "T12:00:00Z");
+  if (!isFinite(d.getTime())) return "";
+  switch (frequency) {
+    case "Daily":
+      d.setUTCDate(d.getUTCDate() + 1);
+      break;
+    case "Weekly":
+      d.setUTCDate(d.getUTCDate() + 7);
+      break;
+    case "Monthly":
+      d.setUTCMonth(d.getUTCMonth() + 1);
+      break;
+    case "Quarterly":
+      d.setUTCMonth(d.getUTCMonth() + 3);
+      break;
+    case "Half-Yearly":
+      d.setUTCMonth(d.getUTCMonth() + 6);
+      break;
+    case "Yearly":
+      d.setUTCFullYear(d.getUTCFullYear() + 1);
+      break;
+    default:
+      d.setUTCMonth(d.getUTCMonth() + 1);
+  }
   return d.toISOString().split("T")[0];
 };

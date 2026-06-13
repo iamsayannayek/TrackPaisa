@@ -92,6 +92,15 @@ function ClassicTabLayout() {
             ),
           }}
         />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: "Profile",
+            tabBarIcon: ({ color }) => (
+              <Feather name="user" size={22} color={color} />
+            ),
+          }}
+        />
       </Tabs>
       <GlobalModals />
     </>

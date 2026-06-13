@@ -90,6 +90,7 @@ export interface UserProfile {
   name: string;
   email: string;
   phone: string;
+  avatar?: string; // NEW FIELD
 }
 
 // --- MODAL FORM TYPES ---
@@ -115,6 +116,7 @@ export interface ModalState {
   goalForm: Partial<Goal>;
   invForm: Partial<Investment>;
   taskForm: Partial<MonthEndTask>;
+  isProfileSheetOpen: boolean; // NEW FIELD
 }
 
 export interface AppState extends ModalState {
@@ -209,6 +211,9 @@ export interface AppState extends ModalState {
   addTransaction: (t: Omit<Transaction, "id">) => void;
   exportData: () => string;
   importData: (json: string) => boolean;
+
+  openProfileSheet: () => void; // NEW FIELD
+  closeProfileSheet: () => void; // NEW FIELD
 }
 
 // --- SEED DATA ---
@@ -574,6 +579,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     name: "",
     email: "",
     phone: "",
+    avatar: "", // INITIALIZE
   });
 
   const [accounts, setAccounts] = useState<Account[]>(SEED_ACCOUNTS);
@@ -606,6 +612,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>();
   const [editingInv, setEditingInv] = useState<Investment | undefined>();
   const [editingTask, setEditingTask] = useState<MonthEndTask | undefined>();
+
+  // NEW STATE
+  const [isProfileSheetOpen, setIsProfileSheetOpen] = useState(false);
+  const openProfileSheet = () => setIsProfileSheetOpen(true);
+  const closeProfileSheet = () => setIsProfileSheetOpen(false);
 
   const [txForm, setTxForm] = useState<Partial<Transaction>>({
     type: "EXPENSE",
@@ -1192,7 +1203,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsDarkMode(true);
     setActiveTab("dashboard");
     setCurrentMonth(resetMonth);
-    setProfile({ name: "", email: "", phone: "" });
+    setProfile({ name: "", email: "", phone: "", avatar: "" });
 
     setAccounts([]);
     setTransactions([]);
@@ -1209,6 +1220,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsGoalModalOpen(false);
     setIsInvModalOpen(false);
     setIsTaskModalOpen(false);
+    setIsProfileSheetOpen(false);
 
     setEditingTx(undefined);
     setEditingAcc(undefined);
@@ -1465,6 +1477,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     isLoaded,
     profile,
     setProfile,
+    isProfileSheetOpen,
+    openProfileSheet,
+    closeProfileSheet,
     isTxModalOpen,
     isAccModalOpen,
     isBudgetModalOpen,

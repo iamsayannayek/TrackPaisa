@@ -19,6 +19,7 @@ import { useAppColors } from "@/hooks/useAppColors";
 import SelectPicker, { SelectOption } from "@/components/SelectPicker";
 import DateInput from "@/components/DateInput";
 import AmountInput from "@/components/AmountInput";
+import ProfileSheet from "./ProfileSheet";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 
 // ---- Shared helpers ----
@@ -1123,6 +1124,7 @@ export default function GlobalModals() {
       <GoalModal />
       <InvestmentModal />
       <TaskModal />
+      <ProfileSheet />
     </>
   );
 }

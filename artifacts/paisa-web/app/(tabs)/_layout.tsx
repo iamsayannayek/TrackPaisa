@@ -8,16 +8,14 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import GlobalModals from "@/components/GlobalModals";
-import { useApp } from "@/context/AppContext";
 import { useAppColors } from "@/hooks/useAppColors";
 
-function ClassicTabLayout() {
+export default function TabLayout() {
   const c = useAppColors();
   const insets = useSafeAreaInsets();
-  const app = useApp();
 
   return (
-    <>
+    <React.Fragment>
       <Tabs
         screenOptions={{
           tabBarActiveTintColor: c.primary,
@@ -92,23 +90,8 @@ function ClassicTabLayout() {
             ),
           }}
         />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: "Profile",
-            tabBarIcon: ({ color }) => (
-              <Feather name="user" size={22} color={color} />
-            ),
-          }}
-        />
       </Tabs>
       <GlobalModals />
-    </>
+    </React.Fragment>
   );
-}
-
-const styles = StyleSheet.create({});
-
-export default function TabLayout() {
-  return <ClassicTabLayout />;
 }

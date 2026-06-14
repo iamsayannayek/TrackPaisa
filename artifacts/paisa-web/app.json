@@ -16,7 +16,9 @@
     "ios": {
       "supportsTablet": false
     },
-    "android": {},
+    "android": {
+      "package": "com.imsayan.paisaweb"
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
@@ -34,6 +36,11 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "0a079364-769b-46ff-ac5d-983c39aa5c93"
+      }
     }
   }
 }

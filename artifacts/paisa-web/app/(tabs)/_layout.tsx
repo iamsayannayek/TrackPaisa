@@ -90,6 +90,14 @@ export default function TabLayout() {
             ),
           }}
         />
+
+        {/* FORCE-HIDE THE PROFILE TAB FROM THE BOTTOM BAR */}
+        <Tabs.Screen
+          name="profile"
+          options={{
+            href: null,
+          }}
+        />
       </Tabs>
       <GlobalModals />
     </React.Fragment>

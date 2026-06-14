@@ -582,17 +582,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     avatar: "", // INITIALIZE
   });
 
-  const [accounts, setAccounts] = useState<Account[]>(SEED_ACCOUNTS);
-  const [transactions, setTransactions] =
-    useState<Transaction[]>(SEED_TRANSACTIONS);
-  const [budgets, setBudgets] = useState<Budget[]>(SEED_BUDGETS);
-  const [commitments, setCommitments] =
-    useState<Commitment[]>(SEED_COMMITMENTS);
-  const [goals, setGoals] = useState<Goal[]>(SEED_GOALS);
-  const [investments, setInvestments] =
-    useState<Investment[]>(SEED_INVESTMENTS);
-  const [monthEndTasks, setMonthEndTasks] =
-    useState<MonthEndTask[]>(SEED_TASKS);
+  // Initialize with empty arrays for production.
+  // (You can keep the SEED constants in the file for future testing if you want)
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [commitments, setCommitments] = useState<Commitment[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [investments, setInvestments] = useState<Investment[]>([]);
+  const [monthEndTasks, setMonthEndTasks] = useState<MonthEndTask[]>([]);
 
   // Modal state
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);

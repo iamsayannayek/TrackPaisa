@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -301,8 +302,6 @@ const BUDGET_ICON_OPTIONS: SelectOption[] = [
   { value: "Globe", label: "✈️ Travel" },
 ];
 
-// --- NEW EMOJI CATEGORY LISTS ---
-
 const INCOME_CATEGORIES = [
   "💼 Salary",
   "💻 Freelancing",
@@ -318,28 +317,53 @@ const INCOME_CATEGORIES = [
   "📦 Other",
 ];
 
-const EXPENSE_CATEGORIES = [
-  "🍔 Food & Dining",
-  "🚌 Transport",
-  "🛍️ Shopping/Personal",
-  "💡 Bills & Utilities",
-  "👨‍👩‍👧‍👦 Family",
-  "🏠 Rent / EMI",
-  "🏥 Health",
-  "📚 Education",
-  "🎬 Entertainment",
-  "✈️ Travel",
-  "📈 Investment / Transfer",
-  "🤝 Commitment",
-  "📦 Others",
-];
-
 // ---- Transaction Modal ----
 export function TxModal() {
   const app = useApp();
   const c = useAppColors();
   const form = app.txForm;
   const set = app.setTxForm;
+
+  // Track if we've shown the warning so we don't spam the user
+  const [hasWarnedBudget, setHasWarnedBudget] = useState(false);
+
+  // Reset the warning flag whenever the modal is closed
+  useEffect(() => {
+    if (!app.isTxModalOpen) {
+      setHasWarnedBudget(false);
+    }
+  }, [app.isTxModalOpen]);
+
+  // SMART WARNING LOGIC: Trigger an alert if they have 0 budgets
+  useEffect(() => {
+    if (
+      app.isTxModalOpen &&
+      form.type === "EXPENSE" &&
+      app.budgets.length === 0 &&
+      !hasWarnedBudget &&
+      !app.editingTx // Don't annoy them if they are just editing an old transaction
+    ) {
+      Alert.alert(
+        "No Budgets Found",
+        "Please create your budget categories first.\n\nFor now, only the '📦 Others' category is available.",
+        [{ text: "Got it" }],
+      );
+      setHasWarnedBudget(true);
+
+      // Auto-select "Others" so they aren't stuck with an empty field
+      if (!form.category) {
+        set((p) => ({ ...p, category: "📦 Others" }));
+      }
+    }
+  }, [
+    app.isTxModalOpen,
+    form.type,
+    app.budgets.length,
+    hasWarnedBudget,
+    app.editingTx,
+    form.category,
+    set,
+  ]);
 
   const txTypes: ("INCOME" | "EXPENSE" | "TRANSFER")[] = [
     "INCOME",
@@ -365,20 +389,20 @@ export function TxModal() {
     })),
   ];
 
-  // --- DYNAMIC CATEGORY LOGIC ---
+  // --- STRICT CATEGORY LOGIC ---
   const isIncome = form.type === "INCOME";
 
-  // Creates a unique array of categories. Legacy categories (without emojis)
-  // currently attached to the form will still show up dynamically to prevent blank dropdowns.
+  // For expenses, if they have no budgets, gracefully fallback to ONLY "📦 Others"
+  const expenseCategories =
+    app.budgets.length > 0 ? app.budgets.map((b) => b.category) : ["📦 Others"];
+
   const dynamicCategories = Array.from(
     new Set([
-      ...(form.category ? [form.category] : []), // Preserve current legacy string if editing
-      ...(isIncome ? [] : app.budgets.map((b) => b.category)), // Pull custom budgets for expenses
-      ...(isIncome ? INCOME_CATEGORIES : EXPENSE_CATEGORIES), // The new emoji presets
+      ...(form.category ? [form.category] : []), // Preserve current legacy string if editing an old Tx
+      ...(isIncome ? INCOME_CATEGORIES : expenseCategories),
     ]),
   );
 
-  // Note: We do NOT use .sort() here because emojis break alphabetical sorting predictably
   const catOptions: SelectOption[] = dynamicCategories.map((cat) => ({
     value: cat,
     label: cat,

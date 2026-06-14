@@ -19,7 +19,6 @@ import { useAppColors } from "@/hooks/useAppColors";
 import SelectPicker, { SelectOption } from "@/components/SelectPicker";
 import DateInput from "@/components/DateInput";
 import AmountInput from "@/components/AmountInput";
-import ProfileSheet from "./ProfileSheet";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 
 // ---- Shared helpers ----
@@ -229,7 +228,7 @@ function DeleteBtn({ onPress }: { onPress: () => void }) {
   );
 }
 
-// ColorPicker and icon option constants (unchanged from original)
+// ColorPicker and icon option constants
 const COLORS = [
   "#3b82f6",
   "#6366f1",
@@ -302,20 +301,37 @@ const BUDGET_ICON_OPTIONS: SelectOption[] = [
   { value: "Globe", label: "✈️ Travel" },
 ];
 
+// --- NEW EMOJI CATEGORY LISTS ---
+
+const INCOME_CATEGORIES = [
+  "💼 Salary",
+  "💻 Freelancing",
+  "🏢 Business",
+  "📈 Investment",
+  "🏠 Rental Income",
+  "🎁 Gift",
+  "🎓 Scholarship",
+  "💸 Cashback",
+  "🔄 Refund",
+  "🎥 YouTube Income",
+  "🚀 Side Hustle",
+  "📦 Other",
+];
+
 const EXPENSE_CATEGORIES = [
-  "Food & Dining",
-  "Transport",
-  "Shopping/Personal",
-  "Bills & Utilities",
-  "Family",
-  "Rent / EMI",
-  "Health",
-  "Education",
-  "Entertainment",
-  "Travel",
-  "Investment / Transfer",
-  "Commitment",
-  "Others",
+  "🍔 Food & Dining",
+  "🚌 Transport",
+  "🛍️ Shopping/Personal",
+  "💡 Bills & Utilities",
+  "👨‍👩‍👧‍👦 Family",
+  "🏠 Rent / EMI",
+  "🏥 Health",
+  "📚 Education",
+  "🎬 Entertainment",
+  "✈️ Travel",
+  "📈 Investment / Transfer",
+  "🤝 Commitment",
+  "📦 Others",
 ];
 
 // ---- Transaction Modal ----
@@ -330,10 +346,12 @@ export function TxModal() {
     "EXPENSE",
     "TRANSFER",
   ];
+
   const accOptions: SelectOption[] = app.accounts.map((a) => ({
     value: a.id,
     label: a.name,
   }));
+
   const destOptions: SelectOption[] = [
     ...app.accounts.map((a) => ({
       value: a.id,
@@ -346,14 +364,26 @@ export function TxModal() {
       group: "Investments",
     })),
   ];
-  const dynamicCategories = Array.from(
-    new Set([...app.budgets.map((b) => b.category), ...EXPENSE_CATEGORIES]),
-  ).sort();
 
+  // --- DYNAMIC CATEGORY LOGIC ---
+  const isIncome = form.type === "INCOME";
+
+  // Creates a unique array of categories. Legacy categories (without emojis)
+  // currently attached to the form will still show up dynamically to prevent blank dropdowns.
+  const dynamicCategories = Array.from(
+    new Set([
+      ...(form.category ? [form.category] : []), // Preserve current legacy string if editing
+      ...(isIncome ? [] : app.budgets.map((b) => b.category)), // Pull custom budgets for expenses
+      ...(isIncome ? INCOME_CATEGORIES : EXPENSE_CATEGORIES), // The new emoji presets
+    ]),
+  );
+
+  // Note: We do NOT use .sort() here because emojis break alphabetical sorting predictably
   const catOptions: SelectOption[] = dynamicCategories.map((cat) => ({
     value: cat,
     label: cat,
   }));
+
   return (
     <AppModal
       visible={app.isTxModalOpen}
@@ -854,7 +884,6 @@ export function InvestmentModal() {
               options={freqOptions}
               value={form.frequency ?? "Monthly"}
               onChange={(v) => {
-                // Auto-calc next payment date when frequency changes
                 const newNext = form.lastPaymentDate
                   ? calculateNextDate(form.lastPaymentDate, v)
                   : form.nextPaymentDate;
@@ -977,14 +1006,12 @@ export function InvestmentModal() {
         </>
       )}
 
-      {/* Last Paid Date + Next Due Date (single row, no duplicates) */}
       <Row>
         <Col>
           <Field label="Last Paid Date">
             <DateInput
               value={form.lastPaymentDate || ""}
               onChange={(v) => {
-                // Auto-calc next payment when last paid date is entered
                 const newNext = form.frequency
                   ? calculateNextDate(v, form.frequency)
                   : form.nextPaymentDate;
@@ -1114,9 +1141,11 @@ export function TaskModal() {
 }
 
 // ---- All Modals Combined ----
+import ProfileSheet from "./ProfileSheet";
+
 export default function GlobalModals() {
   return (
-    <>
+    <React.Fragment>
       <TxModal />
       <AccountModal />
       <BudgetModal />
@@ -1125,6 +1154,6 @@ export default function GlobalModals() {
       <InvestmentModal />
       <TaskModal />
       <ProfileSheet />
-    </>
+    </React.Fragment>
   );
 }

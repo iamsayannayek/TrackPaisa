@@ -126,19 +126,106 @@ function SectionHeader({
   );
 }
 
-function HealthScoreCard({ score }: { score: number }) {
+// --- Professional Health Score Card ---
+function HealthScoreCard({
+  score,
+  hasSufficientData,
+}: {
+  score: number;
+  hasSufficientData: boolean;
+}) {
   const c = useAppColors();
-  const color = score >= 70 ? c.income : score >= 40 ? c.warning : c.expense;
+
+  // STATE 1: NOT ENOUGH DATA (Requires Income & Expenses, not just an account balance)
+  if (!hasSufficientData) {
+    return (
+      <View
+        style={{
+          backgroundColor: c.card,
+          borderRadius: c.radius + 4,
+          padding: 16,
+          borderWidth: 1,
+          borderColor: c.cardBorder,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 16,
+        }}
+      >
+        <View
+          style={{
+            alignItems: "center",
+            justifyContent: "center",
+            width: 80,
+            height: 80,
+          }}
+        >
+          <View
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 36,
+              borderWidth: 6,
+              borderColor: c.surfaceElevated,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Feather name="activity" size={24} color={c.mutedForeground} />
+          </View>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              color: c.textSecondary,
+              fontSize: 11,
+              fontWeight: "600",
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+            }}
+          >
+            Financial Health
+          </Text>
+          <Text
+            style={{
+              color: c.text,
+              fontSize: 17,
+              fontWeight: "800",
+              marginTop: 2,
+              marginBottom: 4,
+            }}
+          >
+            Not Enough Data
+          </Text>
+          <Text
+            style={{ color: c.textSecondary, fontSize: 11, lineHeight: 16 }}
+          >
+            Add income and expense transactions to unlock your personalized
+            Financial Health Score.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // STATE 2/3: BASIC & ADVANCED ANALYSIS
+  const color =
+    score >= 75
+      ? c.income
+      : score >= 60
+        ? c.primary
+        : score >= 40
+          ? c.warning
+          : c.expense;
   const label =
-    score >= 80
+    score >= 90
       ? "Excellent"
-      : score >= 65
-        ? "Good"
-        : score >= 45
-          ? "Fair"
-          : score >= 25
-            ? "Needs Work"
-            : "Critical";
+      : score >= 75
+        ? "Very Good"
+        : score >= 60
+          ? "Good"
+          : score >= 40
+            ? "Needs Improvement"
+            : "High Risk";
 
   return (
     <View
@@ -243,6 +330,7 @@ function HealthScoreCard({ score }: { score: number }) {
   );
 }
 
+// --- All Commitments Modal ---
 function AllCommitmentsView({ onClose }: { onClose: () => void }) {
   const app = useApp();
   const c = useAppColors();
@@ -796,6 +884,7 @@ export default function DashboardScreen() {
         .reduce((s, t) => s + t.amount, 0),
     [monthTxs],
   );
+
   const expenses = useMemo(
     () =>
       monthTxs
@@ -803,6 +892,11 @@ export default function DashboardScreen() {
         .reduce((s, t) => s + t.amount, 0),
     [monthTxs],
   );
+
+  // GATEKEEPER: A user must have at least one transaction in the current month to be evaluated.
+  // A bank balance alone provides insufficient data for a financial health score.
+  const hasSufficientData = monthTxs.length > 0;
+
   const netWorth = useMemo(() => {
     const accountTotal = app.accounts.reduce((s, a) => s + a.balance, 0);
     const investmentTotal = app.investments.reduce(
@@ -817,9 +911,7 @@ export default function DashboardScreen() {
       .filter((c2) => {
         if (!c2.date.startsWith(app.currentMonth)) return false;
         if (c2.isPaid) return false;
-        if (c2.isSkipped) {
-          return c2.date >= today;
-        }
+        if (c2.isSkipped) return c2.date >= today;
         return true;
       })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
@@ -831,13 +923,20 @@ export default function DashboardScreen() {
   const getAccName = (id?: string) =>
     app.accounts.find((a) => a.id === id)?.name ?? id ?? "";
 
+  // --- Professional Financial Advisor Scoring Engine (Max 100) ---
   const healthScore = useMemo(() => {
+    if (!hasSufficientData) return 0;
+
     let score = 0;
 
-    const savingsRate =
-      income > 0 ? Math.max(0, income - expenses) / income : 0;
-    score += Math.min(30, Math.round(savingsRate * 150));
+    // Factor 1: Savings Rate (Max 35 points) - Highly Weighted
+    // A 20%+ savings rate grants full points. 0% or negative grants 0.
+    if (income > 0) {
+      const savingsRate = Math.max(0, income - expenses) / income;
+      score += Math.min(35, Math.round(savingsRate * 175)); // (0.2 * 175 = 35)
+    }
 
+    // Factor 2: Budget Discipline (Max 25 points) - Highly Weighted
     const monthBudgets = app.budgets.filter(
       (b) => b.month === app.currentMonth,
     );
@@ -852,34 +951,49 @@ export default function DashboardScreen() {
         }, 0) / monthBudgets.length;
       score += Math.round(disciplineScore * 25);
     } else {
-      score += 15;
+      // Neutral if no budgets set, but capped so users are encouraged to use budgets.
+      score += 10;
     }
 
+    // Factor 3: Commitment Reliability (Max 20 points)
     const monthCommits = app.commitments.filter((c2) =>
       c2.date.startsWith(app.currentMonth),
     );
     if (monthCommits.length > 0) {
       const paidCount = monthCommits.filter((c2) => c2.isPaid).length;
       const skippedCount = monthCommits.filter((c2) => c2.isSkipped).length;
-      score += Math.round((paidCount / monthCommits.length) * 25);
-      score -= Math.round((skippedCount / monthCommits.length) * 10);
+      score += Math.round((paidCount / monthCommits.length) * 20);
+      score -= Math.round((skippedCount / monthCommits.length) * 10); // Aggressive penalty for skipped
     } else {
-      score += 20;
+      // Neutral fallback
+      score += 10;
     }
 
+    // Factor 4: Investment Consistency (Max 10 points)
     const activeInvestments = app.investments.filter((i) => i.autoSchedule);
     if (activeInvestments.length > 0) {
-      score += Math.min(20, 5 + activeInvestments.length * 3);
+      score += Math.min(10, activeInvestments.length * 5);
+    }
+
+    // Factor 5: Emergency Buffer Ratio (Max 10 points)
+    // Does the user's net worth cover at least 3 months of their current monthly expenses?
+    if (expenses > 0) {
+      const bufferRatio = netWorth / expenses;
+      score += Math.min(10, Math.round(bufferRatio * 3.33)); // 3x expenses = 10 pts
+    } else if (netWorth > 0) {
+      score += 10; // If they have money but 0 expenses this month, good buffer
     }
 
     return Math.max(0, Math.min(100, score));
   }, [
+    hasSufficientData,
     income,
     expenses,
     monthTxs,
     app.budgets,
     app.commitments,
     app.investments,
+    netWorth,
     app.currentMonth,
   ]);
 
@@ -1085,7 +1199,10 @@ export default function DashboardScreen() {
         </View>
 
         <View style={{ marginBottom: 20 }}>
-          <HealthScoreCard score={healthScore} />
+          <HealthScoreCard
+            score={healthScore}
+            hasSufficientData={hasSufficientData}
+          />
         </View>
 
         <View style={{ flexDirection: "column", gap: 12, marginBottom: 20 }}>

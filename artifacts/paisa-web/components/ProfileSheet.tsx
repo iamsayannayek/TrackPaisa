@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Modal,
   View,
@@ -10,6 +10,8 @@ import {
   Alert,
   TextInput,
   ScrollView,
+  Animated,
+  Dimensions,
   Share,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
@@ -25,13 +27,66 @@ export default function ProfileSheet() {
   const c = useAppColors();
   const insets = useSafeAreaInsets();
 
+  // ==========================================
+  // BULLETPROOF STATE EXTRACTION
+  // ==========================================
+  const profile = app?.profile || {};
+  const avatarUrl = profile.avatar;
+  const profileName = profile.name || "";
+  const profileEmail = profile.email || "";
+
   const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(app.profile?.name || "");
-  const [editEmail, setEditEmail] = useState(app.profile?.email || "");
+  const [editName, setEditName] = useState(profileName);
+  const [editEmail, setEditEmail] = useState(profileEmail);
+
+  // --- Right-to-Left Animation Engine ---
+  const { width } = Dimensions.get("window");
+  const DRAWER_WIDTH = Math.min(width * 0.85, 400);
+
+  const slideAnim = useRef(new Animated.Value(DRAWER_WIDTH)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const [modalVisible, setModalVisible] = useState(app.isProfileSheetOpen);
+
+  useEffect(() => {
+    if (app.isProfileSheetOpen) {
+      setModalVisible(true);
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: DRAWER_WIDTH,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setModalVisible(false);
+      });
+    }
+  }, [app.isProfileSheetOpen]);
 
   // --- Financial Calculations ---
   const monthTxs = useMemo(
-    () => app.transactions.filter((t) => t.date.startsWith(app.currentMonth)),
+    () =>
+      (app.transactions || []).filter((t) =>
+        t.date.startsWith(app.currentMonth),
+      ),
     [app.transactions, app.currentMonth],
   );
 
@@ -39,7 +94,7 @@ export default function ProfileSheet() {
     () =>
       monthTxs
         .filter((t) => t.type === "INCOME")
-        .reduce((s, t) => s + t.amount, 0),
+        .reduce((s, t) => s + (t.amount || 0), 0),
     [monthTxs],
   );
 
@@ -47,26 +102,39 @@ export default function ProfileSheet() {
     () =>
       monthTxs
         .filter((t) => t.type === "EXPENSE")
-        .reduce((s, t) => s + t.amount, 0),
+        .reduce((s, t) => s + (t.amount || 0), 0),
     [monthTxs],
   );
 
   const netWorth = useMemo(() => {
-    const accountTotal = app.accounts.reduce((s, a) => s + a.balance, 0);
-    const investmentTotal = app.investments.reduce(
-      (s, i) => s + i.currentValue,
+    const accountTotal = (app.accounts || []).reduce(
+      (s, a) => s + (a.balance || 0),
+      0,
+    );
+    const investmentTotal = (app.investments || []).reduce(
+      (s, i) => s + (i.currentValue || 0),
       0,
     );
     return accountTotal + investmentTotal;
   }, [app.accounts, app.investments]);
 
-  const healthScore = useMemo(() => {
-    let score = 0;
-    const savingsRate =
-      income > 0 ? Math.max(0, income - expenses) / income : 0;
-    score += Math.min(30, Math.round(savingsRate * 150));
+  // GATEKEEPER: Synchronized with Dashboard
+  const hasSufficientData = monthTxs.length > 0;
 
-    const monthBudgets = app.budgets.filter(
+  // SYNCHRONIZED PROFESSIONAL ADVISOR SCORING ENGINE
+  const healthScore = useMemo(() => {
+    if (!hasSufficientData) return 0;
+
+    let score = 0;
+
+    // Factor 1: Savings Rate (Max 35 points)
+    if (income > 0) {
+      const savingsRate = Math.max(0, income - expenses) / income;
+      score += Math.min(35, Math.round(savingsRate * 175));
+    }
+
+    // Factor 2: Budget Discipline (Max 25 points)
+    const monthBudgets = (app.budgets || []).filter(
       (b) => b.month === app.currentMonth,
     );
     if (monthBudgets.length > 0) {
@@ -74,48 +142,71 @@ export default function ProfileSheet() {
         monthBudgets.reduce((sum, b) => {
           const spent = monthTxs
             .filter((t) => t.type === "EXPENSE" && t.category === b.category)
-            .reduce((s, t) => s + t.amount, 0);
+            .reduce((s, t) => s + (t.amount || 0), 0);
           const ratio = b.limit > 0 ? spent / b.limit : 0;
           return sum + Math.max(0, 1 - ratio);
         }, 0) / monthBudgets.length;
       score += Math.round(disciplineScore * 25);
     } else {
-      score += 15;
+      score += 10;
     }
 
-    const monthCommits = app.commitments.filter((c2) =>
+    // Factor 3: Commitment Reliability (Max 20 points)
+    const monthCommits = (app.commitments || []).filter((c2) =>
       c2.date.startsWith(app.currentMonth),
     );
     if (monthCommits.length > 0) {
       const paidCount = monthCommits.filter((c2) => c2.isPaid).length;
       const skippedCount = monthCommits.filter((c2) => c2.isSkipped).length;
-      score += Math.round((paidCount / monthCommits.length) * 25);
+      score += Math.round((paidCount / monthCommits.length) * 20);
       score -= Math.round((skippedCount / monthCommits.length) * 10);
     } else {
-      score += 20;
+      score += 10;
     }
 
-    const activeInvestments = app.investments.filter((i) => i.autoSchedule);
-    if (activeInvestments.length > 0)
-      score += Math.min(20, 5 + activeInvestments.length * 3);
+    // Factor 4: Investment Consistency (Max 10 points)
+    const activeInvestments = (app.investments || []).filter(
+      (i) => i.autoSchedule,
+    );
+    if (activeInvestments.length > 0) {
+      score += Math.min(10, activeInvestments.length * 5);
+    }
+
+    // Factor 5: Emergency Buffer Ratio (Max 10 points)
+    if (expenses > 0) {
+      const bufferRatio = netWorth / expenses;
+      score += Math.min(10, Math.round(bufferRatio * 3.33));
+    } else if (netWorth > 0) {
+      score += 10;
+    }
 
     return Math.max(0, Math.min(100, score));
   }, [
+    hasSufficientData,
     income,
     expenses,
     monthTxs,
     app.budgets,
     app.commitments,
     app.investments,
+    netWorth,
     app.currentMonth,
   ]);
 
-  const hColor =
-    healthScore >= 70 ? c.income : healthScore >= 40 ? c.warning : c.expense;
-  const fmt = (n: number) =>
-    `₹${Math.abs(n).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+  // Synchronized Display States
+  const hColor = !hasSufficientData
+    ? c.mutedForeground
+    : healthScore >= 75
+      ? c.income
+      : healthScore >= 60
+        ? c.primary
+        : healthScore >= 40
+          ? c.warning
+          : c.expense;
+  const hDisplay = !hasSufficientData ? "N/A" : `${healthScore}/100`;
 
-  if (!app.isProfileSheetOpen) return null;
+  const fmt = (n: number) =>
+    `₹${Math.abs(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -126,16 +217,18 @@ export default function ProfileSheet() {
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      app.setProfile((prev) => ({ ...prev, avatar: result.assets[0].uri }));
+      app.setProfile((prev) => ({
+        ...(prev || {}),
+        avatar: result.assets[0].uri,
+      }));
     }
   };
 
   const handleSaveProfile = () => {
-    app.setProfile((p) => ({ ...p, name: editName, email: editEmail }));
+    app.setProfile((p) => ({ ...(p || {}), name: editName, email: editEmail }));
     setIsEditing(false);
   };
 
-  // RESTORED EXPORT LOGIC FROM OLD PROFILE.TSX
   const handleExport = async () => {
     try {
       const json = app.exportData();
@@ -230,38 +323,43 @@ export default function ProfileSheet() {
     </View>
   );
 
+  if (!modalVisible) return null;
+
   return (
     <Modal
-      visible
+      visible={modalVisible}
       transparent
-      animationType="slide"
+      animationType="none"
       onRequestClose={app.closeProfileSheet}
     >
       <View
         style={{ flex: 1, flexDirection: "row", justifyContent: "flex-end" }}
       >
-        <TouchableOpacity
-          style={{
-            ...StyleSheet.absoluteFillObject,
-            backgroundColor: "rgba(0,0,0,0.5)",
-          }}
-          activeOpacity={1}
-          onPress={app.closeProfileSheet}
-        />
+        {/* Animated Dark Backdrop */}
+        <Animated.View
+          style={[StyleSheet.absoluteFillObject, { opacity: fadeAnim }]}
+        >
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}
+            activeOpacity={1}
+            onPress={app.closeProfileSheet}
+          />
+        </Animated.View>
 
-        <View
+        {/* Animated Slide-over Drawer */}
+        <Animated.View
           style={{
-            width: "85%",
-            maxWidth: 400,
+            width: DRAWER_WIDTH,
             backgroundColor: c.background,
             height: "100%",
             paddingTop: insets.top,
             paddingBottom: insets.bottom,
             shadowColor: "#000",
-            shadowOffset: { width: -2, height: 0 },
-            shadowOpacity: 0.25,
-            shadowRadius: 10,
-            elevation: 5,
+            shadowOffset: { width: -5, height: 0 },
+            shadowOpacity: 0.3,
+            shadowRadius: 15,
+            elevation: 10,
+            transform: [{ translateX: slideAnim }],
           }}
         >
           <View
@@ -295,9 +393,9 @@ export default function ProfileSheet() {
                 onPress={handlePickImage}
                 style={{ position: "relative", marginBottom: 16 }}
               >
-                {app.profile?.avatar ? (
+                {avatarUrl ? (
                   <Image
-                    source={{ uri: app.profile.avatar }}
+                    source={{ uri: avatarUrl }}
                     style={{ width: 90, height: 90, borderRadius: 45 }}
                   />
                 ) : (
@@ -385,11 +483,11 @@ export default function ProfileSheet() {
                       marginBottom: 4,
                     }}
                   >
-                    {app.profile?.name || "Guest User"}
+                    {profileName || "Guest User"}
                   </Text>
-                  {app.profile?.email ? (
+                  {profileEmail ? (
                     <Text style={{ color: c.textSecondary, marginBottom: 12 }}>
-                      {app.profile.email}
+                      {profileEmail}
                     </Text>
                   ) : null}
                   <TouchableOpacity
@@ -409,7 +507,7 @@ export default function ProfileSheet() {
               )}
             </View>
 
-            {/* Financial Overview 2x2 Grid */}
+            {/* Financial Overview */}
             <Text
               style={{
                 fontSize: 13,
@@ -438,7 +536,7 @@ export default function ProfileSheet() {
               />
               <StatItem
                 title="Health Score"
-                value={`${healthScore}/100`}
+                value={hDisplay}
                 icon="activity"
                 color={hColor}
               />
@@ -456,7 +554,7 @@ export default function ProfileSheet() {
               />
             </View>
 
-            {/* Application Data Stats (Restored from Old Profile) */}
+            {/* Application Data Stats */}
             <Text
               style={{
                 fontSize: 13,
@@ -480,12 +578,15 @@ export default function ProfileSheet() {
               }}
             >
               {[
-                { label: "Accounts", count: app.accounts.length },
-                { label: "Transactions", count: app.transactions.length },
-                { label: "Budgets", count: app.budgets.length },
-                { label: "Commitments", count: app.commitments.length },
-                { label: "Investments", count: app.investments.length },
-                { label: "Goals", count: app.goals.length },
+                { label: "Accounts", count: (app.accounts || []).length },
+                {
+                  label: "Transactions",
+                  count: (app.transactions || []).length,
+                },
+                { label: "Budgets", count: (app.budgets || []).length },
+                { label: "Commitments", count: (app.commitments || []).length },
+                { label: "Investments", count: (app.investments || []).length },
+                { label: "Goals", count: (app.goals || []).length },
               ].map(({ label, count }, i, arr) => (
                 <View
                   key={label}
@@ -664,7 +765,7 @@ export default function ProfileSheet() {
               PaisaWeb App Version 1.0.0
             </Text>
           </ScrollView>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );

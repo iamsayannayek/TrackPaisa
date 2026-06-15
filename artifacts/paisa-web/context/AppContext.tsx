@@ -1,6 +1,25 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
+// --- HELPERS & Validation ---
+function uid(): string {
+  return Date.now().toString() + Math.random().toString(36).substr(2, 9);
+}
+
+// Ensure numeric amounts are never negative or NaN before database persistence.
+export const isValidAmount = (val: number | undefined): boolean => {
+  return typeof val === "number" && !isNaN(val) && val >= 0;
+};
+
+// --- FIX: Timezone-Safe Local Date Generator ---
+export const getLocalDate = (): string => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 // --- TYPES ---
 export type AccountType = "BANK" | "CREDIT_CARD" | "CASH_WALLET" | "INVESTMENT";
 export type TransactionType = "INCOME" | "EXPENSE" | "TRANSFER";
@@ -90,7 +109,7 @@ export interface UserProfile {
   name: string;
   email: string;
   phone: string;
-  avatar?: string; // NEW FIELD
+  avatar?: string;
 }
 
 // --- MODAL FORM TYPES ---
@@ -116,7 +135,7 @@ export interface ModalState {
   goalForm: Partial<Goal>;
   invForm: Partial<Investment>;
   taskForm: Partial<MonthEndTask>;
-  isProfileSheetOpen: boolean; // NEW FIELD
+  isProfileSheetOpen: boolean;
 }
 
 export interface AppState extends ModalState {
@@ -212,351 +231,9 @@ export interface AppState extends ModalState {
   exportData: () => string;
   importData: (json: string) => boolean;
 
-  openProfileSheet: () => void; // NEW FIELD
-  closeProfileSheet: () => void; // NEW FIELD
+  openProfileSheet: () => void;
+  closeProfileSheet: () => void;
 }
-
-// --- SEED DATA ---
-const SEED_ACCOUNTS: Account[] = [
-  {
-    id: "a1",
-    name: "HDFC Bank",
-    type: "BANK",
-    balance: 12000,
-    purpose: "Primary spending (Salary)",
-    icon: "Landmark",
-    color: "#1d4ed8",
-  },
-  {
-    id: "a2",
-    name: "HDFC Tata Neu",
-    type: "CREDIT_CARD",
-    balance: -2500,
-    bankLimit: 90000,
-    selfLimit: 15000,
-    purpose: "Monthly spend",
-    icon: "CreditCard",
-    color: "#6d28d9",
-  },
-  {
-    id: "a3",
-    name: "SBI Bank",
-    type: "BANK",
-    balance: 85000,
-    purpose: "Emergency",
-    icon: "Landmark",
-    color: "#0369a1",
-  },
-  {
-    id: "a4",
-    name: "Canara Bank",
-    type: "BANK",
-    balance: 25000,
-    purpose: "MF linked + Backup",
-    icon: "Landmark",
-    color: "#b91c1c",
-  },
-  {
-    id: "a5",
-    name: "Black Wallet 1",
-    type: "CASH_WALLET",
-    balance: 1500,
-    purpose: "Daily cash",
-    icon: "Wallet",
-    color: "#334155",
-  },
-  {
-    id: "a6",
-    name: "Black Wallet 2",
-    type: "CASH_WALLET",
-    balance: 2000,
-    purpose: "Emergency bag cash",
-    icon: "Wallet",
-    color: "#0f172a",
-  },
-];
-
-const SEED_TRANSACTIONS: Transaction[] = [
-  {
-    id: "t1",
-    date: "2026-05-01",
-    amount: 25000,
-    type: "INCOME",
-    sourceId: "a1",
-    category: "Salary",
-    note: "May Salary",
-  },
-  {
-    id: "t2",
-    date: "2026-05-02",
-    amount: 8000,
-    type: "EXPENSE",
-    sourceId: "a1",
-    category: "Family",
-    note: "Home Remittance",
-  },
-  {
-    id: "t3",
-    date: "2026-05-03",
-    amount: 1500,
-    type: "TRANSFER",
-    sourceId: "a1",
-    destId: "i1",
-    category: "Investment",
-    note: "MF Transfer",
-  },
-  {
-    id: "t4",
-    date: "2026-05-03",
-    amount: 500,
-    type: "TRANSFER",
-    sourceId: "a1",
-    destId: "i2",
-    category: "Investment",
-    note: "PPF Transfer",
-  },
-  {
-    id: "t5",
-    date: "2026-05-04",
-    amount: 1763,
-    type: "TRANSFER",
-    sourceId: "a1",
-    destId: "i3",
-    category: "Sinking Fund",
-    note: "LIC Monthly Provision",
-  },
-  {
-    id: "t6",
-    date: "2026-05-05",
-    amount: 1500,
-    type: "TRANSFER",
-    sourceId: "a1",
-    destId: "a5",
-    category: "Withdrawal",
-    note: "Daily Transport Cash",
-  },
-  {
-    id: "t7",
-    date: "2026-05-06",
-    amount: 120,
-    type: "EXPENSE",
-    sourceId: "a5",
-    category: "Transport",
-    note: "Bus Ticket",
-  },
-  {
-    id: "t8",
-    date: "2026-05-10",
-    amount: 850,
-    type: "EXPENSE",
-    sourceId: "a2",
-    category: "Food & Dining",
-    note: "Groceries",
-  },
-  {
-    id: "t9",
-    date: "2026-05-15",
-    amount: 300,
-    type: "EXPENSE",
-    sourceId: "a2",
-    category: "Bills & Utilities",
-    note: "Mobile Bill",
-  },
-];
-
-const SEED_BUDGETS: Budget[] = [
-  {
-    id: "b1",
-    category: "Transport",
-    limit: 1500,
-    color: "#f59e0b",
-    icon: "Car",
-    month: "2026-05",
-  },
-  {
-    id: "b2",
-    category: "Food & Dining",
-    limit: 4000,
-    color: "#10b981",
-    icon: "Coffee",
-    month: "2026-05",
-  },
-  {
-    id: "b3",
-    category: "Shopping/Personal",
-    limit: 2000,
-    color: "#8b5cf6",
-    icon: "ShoppingCart",
-    month: "2026-05",
-  },
-  {
-    id: "b4",
-    category: "Bills & Utilities",
-    limit: 1000,
-    color: "#3b82f6",
-    icon: "Zap",
-    month: "2026-05",
-  },
-  {
-    id: "b5",
-    category: "Family",
-    limit: 10000,
-    color: "#f43f5e",
-    icon: "Heart",
-    month: "2026-05",
-  },
-];
-
-const SEED_INVESTMENTS: Investment[] = [
-  {
-    id: "i1",
-    name: "Mutual Fund (Equity)",
-    type: "MF",
-    monthlyContribution: 1500,
-    frequency: "Monthly",
-    totalInvested: 45000,
-    currentValue: 52300,
-    treatAsExpense: false,
-    showReturns: true,
-    autoSchedule: true,
-  },
-  {
-    id: "i2",
-    name: "PPF",
-    type: "PPF",
-    monthlyContribution: 500,
-    frequency: "Monthly",
-    totalInvested: 15000,
-    currentValue: 16100,
-    treatAsExpense: false,
-    showReturns: false,
-    autoSchedule: true,
-  },
-  {
-    id: "i3",
-    name: "LIC Jeevan Umang (745)",
-    type: "LIC",
-    monthlyContribution: 5300,
-    frequency: "Quarterly",
-    totalInvested: 21156,
-    currentValue: 9500,
-    treatAsExpense: true,
-    showReturns: false,
-    autoSchedule: true,
-  },
-];
-
-const SEED_COMMITMENTS: Commitment[] = [
-  {
-    id: "c1",
-    title: "Home Remittance",
-    amount: 8000,
-    date: "2026-05-02",
-    sourceId: "a1",
-    isPaid: false,
-  },
-  {
-    id: "c2",
-    title: "Mutual Fund SIPs",
-    amount: 1500,
-    date: "2026-05-05",
-    sourceId: "a4",
-    destId: "i1",
-    isPaid: false,
-  },
-  {
-    id: "c3",
-    title: "PPF Investment",
-    amount: 500,
-    date: "2026-05-05",
-    sourceId: "a3",
-    destId: "i2",
-    isPaid: false,
-  },
-  {
-    id: "c4",
-    title: "LIC Premium (QTR)",
-    amount: 5300,
-    date: "2026-05-28",
-    sourceId: "a4",
-    destId: "i3",
-    isPaid: false,
-  },
-  {
-    id: "c5",
-    title: "Train Pass",
-    amount: 500,
-    date: "2026-05-01",
-    sourceId: "a5",
-    isPaid: false,
-  },
-  {
-    id: "c6",
-    title: "Daily Transport Cash",
-    amount: 1500,
-    date: "2026-05-01",
-    sourceId: "a1",
-    destId: "a5",
-    isPaid: false,
-  },
-];
-
-const SEED_GOALS: Goal[] = [
-  {
-    id: "g1",
-    name: "1BHK Flat Downpayment",
-    target: 500000,
-    current: 85000,
-    deadline: "2030-12-31",
-    accountId: "a3",
-  },
-  {
-    id: "g2",
-    name: "Emergency Fund (6 Months)",
-    target: 120000,
-    current: 85000,
-    deadline: "2027-06-30",
-    accountId: "a3",
-  },
-];
-
-const SEED_TASKS: MonthEndTask[] = [
-  {
-    id: "tk1",
-    text: "Reconcile physical cash in Black & Brown wallets",
-    isCompleted: false,
-  },
-  {
-    id: "tk2",
-    text: "Pay HDFC Tata Neu CC bill in full from Salary account",
-    isCompleted: false,
-  },
-  {
-    id: "tk3",
-    text: "Move provisions for next month (LIC, Train) to Canara Bank",
-    isCompleted: false,
-  },
-  {
-    id: "tk4",
-    text: "Sweep all remaining HDFC buffer into SBI Emergency Fund",
-    isCompleted: false,
-  },
-  {
-    id: "tk5",
-    text: "Withdraw cash for next month's daily transport",
-    isCompleted: false,
-  },
-];
-
-// --- HELPERS & Validation ---
-function uid(): string {
-  return Date.now().toString() + Math.random().toString(36).substr(2, 9);
-}
-
-// Ensure numeric amounts are never negative or NaN before database persistence.
-export const isValidAmount = (val: number | undefined): boolean => {
-  return typeof val === "number" && !isNaN(val) && val >= 0;
-};
 
 // --- CONTEXT ---
 export const AppContext = createContext<AppState | null>(null);
@@ -579,11 +256,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     name: "",
     email: "",
     phone: "",
-    avatar: "", // INITIALIZE
+    avatar: "",
   });
 
-  // Initialize with empty arrays for production.
-  // (You can keep the SEED constants in the file for future testing if you want)
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -611,7 +286,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [editingInv, setEditingInv] = useState<Investment | undefined>();
   const [editingTask, setEditingTask] = useState<MonthEndTask | undefined>();
 
-  // NEW STATE
   const [isProfileSheetOpen, setIsProfileSheetOpen] = useState(false);
   const openProfileSheet = () => setIsProfileSheetOpen(true);
   const closeProfileSheet = () => setIsProfileSheetOpen(false);
@@ -619,7 +293,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [txForm, setTxForm] = useState<Partial<Transaction>>({
     type: "EXPENSE",
     amount: 0,
-    date: new Date().toISOString().split("T")[0],
+    date: getLocalDate(), // <-- ALWAYS PERFECT LOCAL DATE
   });
   const [accForm, setAccForm] = useState<Partial<Account>>({
     type: "BANK",
@@ -632,7 +306,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     month: currentMonth,
   });
   const [commitmentForm, setCommitmentForm] = useState<Partial<Commitment>>({
-    date: new Date().toISOString().split("T")[0],
+    date: getLocalDate(), // <-- ALWAYS PERFECT LOCAL DATE
     sourceId: "",
   });
   const [goalForm, setGoalForm] = useState<Partial<Goal>>({});
@@ -641,7 +315,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     type: "MF",
     frequency: "Monthly",
     showReturns: true,
-    nextPaymentDate: new Date().toISOString().split("T")[0],
+    nextPaymentDate: getLocalDate(), // <-- ALWAYS PERFECT LOCAL DATE
     paidCount: 0,
     autoSchedule: true,
   });
@@ -827,7 +501,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setTxForm({
         type: "EXPENSE",
         amount: 0,
-        date: new Date().toISOString().split("T")[0],
+        date: getLocalDate(), // <-- ALWAYS PERFECT LOCAL DATE
         sourceId: accounts[0]?.id,
       });
     }
@@ -836,7 +510,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const closeTxModal = () => setIsTxModalOpen(false);
 
   const handleSaveTx = () => {
-    // Protection Guard
     if (!isValidAmount(txForm.amount)) return;
 
     if (editingTx) {
@@ -858,7 +531,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const openAccountModal = (acc?: Account) => {
     if (acc) {
       setEditingAcc(acc);
-      // Safely ensure edit forms receive the absolute positive value initially
       setAccForm({ ...acc, balance: Math.abs(acc.balance) });
     } else {
       setEditingAcc(undefined);
@@ -876,7 +548,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const closeAccModal = () => setIsAccModalOpen(false);
 
   const handleSaveAccount = () => {
-    // Protection Guards
     if (!isValidAmount(accForm.balance)) return;
     if (accForm.bankLimit !== undefined && !isValidAmount(accForm.bankLimit))
       return;
@@ -934,7 +605,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const closeBudgetModal = () => setIsBudgetModalOpen(false);
 
   const handleSaveBudget = () => {
-    // 1. Amount Validation Guard
     if (!isValidAmount(budgetForm.limit)) return;
 
     if (editingBudget) {
@@ -943,20 +613,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const isRename =
         oldCategory && newCategory && oldCategory !== newCategory;
 
-      // Extract color/icon to sync across all months
       const newColor = budgetForm.color ?? editingBudget.color;
       const newIcon = budgetForm.icon ?? editingBudget.icon;
 
-      // 2. Cascade update to ALL budgets (past, present, future)
       setBudgets((prev) =>
         prev.map((b) => {
           if (b.id === editingBudget.id) {
-            // Apply full edit to the targeted month's budget
             return { ...b, ...budgetForm } as Budget;
           }
           if (b.category === oldCategory) {
-            // Cascade naming, icon, and color changes to historical/future months
-            // This prevents the dashboard from showing split variations of the same category
             return {
               ...b,
               category: newCategory,
@@ -968,7 +633,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }),
       );
 
-      // 3. Cascade rename to ALL existing transactions
       if (isRename) {
         setTransactions((prev) =>
           prev.map((t) =>
@@ -977,7 +641,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         );
       }
     } else {
-      // Create new budget
       setBudgets((prev) => [...prev, { ...budgetForm, id: uid() } as Budget]);
     }
 
@@ -1011,7 +674,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setCommitmentForm({
         title: "",
         amount: 0,
-        date: new Date().toISOString().split("T")[0],
+        date: getLocalDate(), // <-- ALWAYS PERFECT LOCAL DATE
         sourceId: accounts[0]?.id,
         destId: "",
         linkedBudgetId: "",
@@ -1022,7 +685,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const closeCommitmentModal = () => setIsCommitmentModalOpen(false);
 
   const handleSaveCommitment = () => {
-    // Protection Guard
     if (!isValidAmount(commitmentForm.amount)) return;
 
     if (editingCommitment) {
@@ -1231,12 +893,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTxForm({
       type: "EXPENSE",
       amount: 0,
-      date: new Date().toISOString().split("T")[0],
+      date: getLocalDate(), // <-- ALWAYS PERFECT LOCAL DATE
     });
     setAccForm({ type: "BANK", color: "#1d4ed8", icon: "Landmark" });
     setBudgetForm({ color: "#3b82f6", icon: "Wallet", month: resetMonth });
     setCommitmentForm({
-      date: new Date().toISOString().split("T")[0],
+      date: getLocalDate(), // <-- ALWAYS PERFECT LOCAL DATE
       sourceId: "",
     });
     setGoalForm({});
@@ -1245,6 +907,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       type: "MF",
       frequency: "Monthly",
       showReturns: true,
+      nextPaymentDate: getLocalDate(), // <-- ALWAYS PERFECT LOCAL DATE
     });
     setTaskForm({ text: "" });
   };
@@ -1260,7 +923,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         name: "",
         target: 0,
         current: 0,
-        deadline: new Date().toISOString().split("T")[0],
+        deadline: getLocalDate(), // <-- ALWAYS PERFECT LOCAL DATE
         accountId: accounts[0]?.id,
       });
     }
@@ -1269,7 +932,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const closeGoalModal = () => setIsGoalModalOpen(false);
 
   const handleSaveGoal = () => {
-    // Protection Guards
     if (!isValidAmount(goalForm.target)) return;
     if (goalForm.current !== undefined && !isValidAmount(goalForm.current))
       return;
@@ -1313,7 +975,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         currentValue: 0,
         treatAsExpense: false,
         showReturns: true,
-        nextPaymentDate: new Date().toISOString().split("T")[0],
+        nextPaymentDate: getLocalDate(), // <-- ALWAYS PERFECT LOCAL DATE
         paidCount: 0,
         autoSchedule: true,
       });
@@ -1323,7 +985,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const closeInvModal = () => setIsInvModalOpen(false);
 
   const handleSaveInvestment = () => {
-    // Protection Guards for all potential numeric fields in Investments
     if (!isValidAmount(invForm.monthlyContribution)) return;
     if (
       invForm.totalInvested !== undefined &&

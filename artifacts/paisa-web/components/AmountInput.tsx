@@ -13,7 +13,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppColors } from "@/hooks/useAppColors";
 
 interface AmountInputProps {
-  value: number;
+  value?: number; // 🔥 FIXED: Made optional so it accepts 'number | undefined'
   onChangeAmount: (val: number) => void;
   placeholder?: string;
   allowDecimals?: boolean;
@@ -44,7 +44,7 @@ const evaluateMath = (expr: string): number => {
 };
 
 export default function AmountInput({
-  value,
+  value = 0, // 🔥 FIXED: Defaults to 0 if undefined is passed
   onChangeAmount,
   placeholder = "0",
   allowDecimals = true,
@@ -123,7 +123,7 @@ export default function AmountInput({
 
   return (
     <>
-      {/* THE TRIGGER INPUT (Looks like a sleek textbox) */}
+      {/* THE TRIGGER INPUT */}
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={() => setModalVisible(true)}

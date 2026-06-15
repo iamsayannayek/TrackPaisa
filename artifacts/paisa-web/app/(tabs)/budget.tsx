@@ -12,62 +12,35 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useApp } from "@/context/AppContext";
 import { useAppColors } from "@/hooks/useAppColors";
 import SelectPicker from "@/components/SelectPicker";
+import { UniversalIcon } from "@/components/GlobalModals"; // 🔥 IMPORTED UNIVERSAL ICON ENGINE
 
 const fmt = (n: number) => `₹${Math.abs(n).toLocaleString("en-IN")}`;
 
-// 🔥 SMART LEGACY MAPPER: Ensures budget icons render perfectly and fixes old DB entries
-const getSafeIcon = (
-  iconStr: string | undefined,
-): keyof typeof MaterialCommunityIcons.glyphMap => {
-  if (!iconStr) return "label-outline";
+// 🔥 SMART LEGACY MAPPER: Automatically translates old DB entries into Universal format
+const getUniversalIcon = (iconStr: string | undefined): string => {
+  if (!iconStr) return "FontAwesome5:tag";
 
-  const validIcons = [
-    "home",
-    "cart",
-    "car",
-    "gas-station",
-    "food-fork-drink",
-    "coffee",
-    "lightning-bolt",
-    "wifi",
-    "movie-open",
-    "baby-carriage",
-    "paw",
-    "face-woman-shimmer",
-    "heart-pulse",
-    "pill",
-    "tshirt-crew",
-    "dumbbell",
-    "book-open-page-variant",
-    "airplane",
-    "gift",
-    "bank-transfer",
-    "shield-check",
-    "piggy-bank",
-    "palette",
-    "label-outline",
-    "wallet-bifold",
-  ];
-  if (validIcons.includes(iconStr)) {
-    return iconStr as keyof typeof MaterialCommunityIcons.glyphMap;
-  }
+  // If it already uses the new format (e.g. "FontAwesome5:car"), return it directly
+  if (iconStr.includes(":")) return iconStr;
 
-  const map: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
-    Wallet: "wallet-bifold",
-    Coffee: "coffee",
-    Car: "car",
-    ShoppingCart: "cart",
-    Zap: "lightning-bolt",
-    Heart: "heart-pulse",
-    Activity: "heart-pulse",
-    Book: "book-open-page-variant",
-    Music: "music",
-    Home: "home",
-    Gift: "gift",
-    Globe: "airplane",
+  // Map old PascalCase legacy names to Universal format
+  const map: Record<string, string> = {
+    Wallet: "FontAwesome5:wallet",
+    Coffee: "FontAwesome5:coffee",
+    Car: "FontAwesome5:car",
+    ShoppingCart: "FontAwesome5:shopping-cart",
+    Zap: "FontAwesome5:bolt",
+    Heart: "FontAwesome5:heart",
+    Activity: "FontAwesome5:heartbeat",
+    Book: "FontAwesome5:book",
+    Music: "FontAwesome5:music",
+    Home: "FontAwesome5:home",
+    Gift: "FontAwesome5:gift",
+    Globe: "FontAwesome5:plane",
   };
 
-  return map[iconStr] || "label-outline";
+  // If it's in the map, use the mapped version. Otherwise, assume it's a legacy MaterialCommunityIcon.
+  return map[iconStr] || `MaterialCommunityIcons:${iconStr}`;
 };
 
 function MonthNav({
@@ -245,7 +218,10 @@ export default function BudgetScreen() {
         <MonthNav month={app.currentMonth} onChange={app.setCurrentMonth} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 110 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 110 }}
+        showsVerticalScrollIndicator={false}
+      >
         <View
           style={{
             backgroundColor: c.primary + "1A",
@@ -527,16 +503,17 @@ export default function BudgetScreen() {
                   >
                     <View
                       style={{
-                        width: 44, // 🔥 BIGGER SIZE
-                        height: 44, // 🔥 BIGGER SIZE
-                        borderRadius: 14, // 🔥 SOFTER CORNERS MATCHING ACCOUNTS
+                        width: 44,
+                        height: 44,
+                        borderRadius: 14,
                         backgroundColor: b.color + "22",
                         alignItems: "center",
                         justifyContent: "center",
                       }}
                     >
-                      <MaterialCommunityIcons
-                        name={getSafeIcon(b.icon)}
+                      {/* 🔥 USING UNIVERSAL ICON HERE */}
+                      <UniversalIcon
+                        icon={getUniversalIcon(b.icon)}
                         size={24}
                         color={b.color}
                       />
@@ -545,7 +522,7 @@ export default function BudgetScreen() {
                       <Text
                         style={{
                           color: c.text,
-                          fontSize: 16, // slightly bigger text to match icon
+                          fontSize: 16,
                           fontWeight: "700",
                         }}
                       >

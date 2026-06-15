@@ -11,6 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useApp } from "@/context/AppContext";
 import { useAppColors } from "@/hooks/useAppColors";
+import { UniversalIcon } from "@/components/GlobalModals"; // 🔥 IMPORTED UNIVERSAL ICON ENGINE
 
 const fmt = (n: number) => `₹${Math.abs(n || 0).toLocaleString("en-IN")}`;
 const fmtCompact = (n: number) => {
@@ -29,6 +30,27 @@ const getContrastYIQ = (hexcolor: string) => {
   const b = parseInt(hex.substr(4, 2), 16);
   const yiq = (r * 299 + g * 587 + b * 114) / 1000;
   return yiq >= 128 ? "#0f172a" : "#ffffff";
+};
+
+// 🔥 SMART LEGACY MAPPER FOR WEALTH ICONS
+const getUniversalIcon = (
+  iconStr: string | undefined,
+  defaultIcon: string,
+): string => {
+  if (!iconStr) return defaultIcon;
+  if (iconStr.includes(":")) return iconStr;
+
+  const map: Record<string, string> = {
+    "bullseye-arrow": "FontAwesome5:bullseye",
+    "chart-pie": "FontAwesome5:chart-pie",
+    bank: "FontAwesome5:university",
+    "shield-check": "FontAwesome5:shield-alt",
+    lock: "FontAwesome5:lock",
+    "cash-clock": "FontAwesome5:hourglass-half",
+    "chart-line": "FontAwesome5:chart-line",
+    finance: "FontAwesome5:chart-bar",
+  };
+  return map[iconStr] || `MaterialCommunityIcons:${iconStr}`;
 };
 
 export default function WealthScreen() {
@@ -59,20 +81,18 @@ export default function WealthScreen() {
   const getAccName = (id?: string) =>
     app.accounts.find((a) => a.id === id)?.name ?? "Account";
 
-  const getInvIcon = (
-    inv: any,
-  ): keyof typeof MaterialCommunityIcons.glyphMap => {
-    if (inv.icon)
-      return inv.icon as keyof typeof MaterialCommunityIcons.glyphMap;
-    const map: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
-      MF: "chart-pie",
-      PPF: "bank",
-      LIC: "shield-check",
-      FD: "lock",
-      RD: "cash-clock",
-      STOCK: "chart-line",
+  const getInvIcon = (inv: any): string => {
+    if (inv.icon) return getUniversalIcon(inv.icon, "FontAwesome5:chart-bar");
+
+    const map: Record<string, string> = {
+      MF: "FontAwesome5:chart-pie",
+      PPF: "FontAwesome5:university",
+      LIC: "FontAwesome5:shield-alt",
+      FD: "FontAwesome5:lock",
+      RD: "FontAwesome5:hourglass-half",
+      STOCK: "FontAwesome5:chart-line",
     };
-    return map[inv.type] || "finance";
+    return map[inv.type] || "FontAwesome5:chart-bar";
   };
 
   return (
@@ -271,7 +291,10 @@ export default function WealthScreen() {
                     : c.primary + "1A");
                 const iconCol =
                   gData.iconColor || (isCustom ? tColor : c.primary);
-                const iconName = gData.icon || "bullseye-arrow";
+                const iconName = getUniversalIcon(
+                  gData.icon,
+                  "FontAwesome5:bullseye",
+                );
 
                 return (
                   <TouchableOpacity
@@ -305,8 +328,9 @@ export default function WealthScreen() {
                           justifyContent: "center",
                         }}
                       >
-                        <MaterialCommunityIcons
-                          name={iconName}
+                        {/* 🔥 USING UNIVERSAL ICON HERE */}
+                        <UniversalIcon
+                          icon={iconName}
                           size={24}
                           color={iconCol}
                         />
@@ -600,8 +624,9 @@ export default function WealthScreen() {
                             marginRight: 12,
                           }}
                         >
-                          <MaterialCommunityIcons
-                            name={getInvIcon(inv)}
+                          {/* 🔥 USING UNIVERSAL ICON HERE */}
+                          <UniversalIcon
+                            icon={getInvIcon(inv)}
                             size={24}
                             color={invColor}
                           />

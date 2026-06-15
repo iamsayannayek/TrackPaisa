@@ -7,12 +7,14 @@ import {
   StatusBar,
   Modal,
   Dimensions,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Svg, { Path, Defs, LinearGradient, Stop } from "react-native-svg";
 import { useApp, Account } from "@/context/AppContext";
 import { useAppColors } from "@/hooks/useAppColors";
+import { UniversalIcon } from "@/components/GlobalModals"; // 🔥 IMPORTED UNIVERSAL ICON ENGINE
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -22,40 +24,34 @@ const fmt = (n: number) =>
     minimumFractionDigits: 0,
   })}`;
 
-// Safely map both OLD legacy icons and NEW premium icons
-const getSafeIcon = (
-  iconStr: string,
-): keyof typeof MaterialCommunityIcons.glyphMap => {
-  if (!iconStr) return "bank"; // Absolute fallback
+// 🔥 SMART LEGACY MAPPER: Translates old DB entries into Universal format safely
+const getUniversalIcon = (iconStr: string | undefined): string => {
+  if (!iconStr) return "FontAwesome5:university";
 
-  const validIcons = [
-    "bank",
-    "credit-card-multiple",
-    "wallet-bifold",
-    "piggy-bank",
-    "safe",
-    "cellphone-nfc",
-    "finance",
-    "bitcoin",
-    "cash-multiple",
-    "briefcase",
-    "cash",
-    "hand-coin",
-  ];
-  if (validIcons.includes(iconStr)) {
-    return iconStr as keyof typeof MaterialCommunityIcons.glyphMap;
-  }
+  if (iconStr.includes(":")) return iconStr;
 
-  const map: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
-    Landmark: "bank",
-    CreditCard: "credit-card-multiple",
-    Wallet: "wallet-bifold",
-    PiggyBank: "piggy-bank",
-    Briefcase: "briefcase",
-    DollarSign: "cash",
+  const map: Record<string, string> = {
+    Landmark: "FontAwesome5:university",
+    CreditCard: "FontAwesome5:credit-card",
+    Wallet: "FontAwesome5:wallet",
+    PiggyBank: "FontAwesome5:piggy-bank",
+    Briefcase: "FontAwesome5:briefcase",
+    DollarSign: "FontAwesome5:money-bill-wave",
+    bank: "FontAwesome5:university",
+    "credit-card-multiple": "FontAwesome5:credit-card",
+    "wallet-bifold": "FontAwesome5:wallet",
+    "piggy-bank": "FontAwesome5:piggy-bank",
+    safe: "FontAwesome5:shield-alt",
+    "cellphone-nfc": "Ionicons:phone-portrait-outline",
+    finance: "FontAwesome5:chart-bar",
+    bitcoin: "FontAwesome5:bitcoin",
+    "cash-multiple": "FontAwesome5:money-bill-wave",
+    briefcase: "FontAwesome5:briefcase",
+    cash: "FontAwesome5:money-bill-wave",
+    "hand-coin": "FontAwesome5:hand-holding-usd",
   };
 
-  return map[iconStr] || "bank";
+  return map[iconStr] || `MaterialCommunityIcons:${iconStr}`;
 };
 
 export default function AccountsScreen() {
@@ -332,7 +328,6 @@ export default function AccountsScreen() {
               </Text>
 
               {group.data.map((acc) => {
-                // RESTORED CREDIT CARD PROGRESS BAR LOGIC
                 const isCC = acc.type === "CREDIT_CARD";
                 const limit = acc.selfLimit || acc.bankLimit || 0;
                 const spent = acc.balance < 0 ? Math.abs(acc.balance) : 0;
@@ -354,7 +349,7 @@ export default function AccountsScreen() {
                       marginBottom: 10,
                       borderWidth: 1,
                       borderColor: c.cardBorder,
-                      flexDirection: "column", // Allow stacking for progress bar
+                      flexDirection: "column",
                     }}
                   >
                     {/* Top Row: Icon, Details, Balance */}
@@ -372,8 +367,9 @@ export default function AccountsScreen() {
                           marginRight: 14,
                         }}
                       >
-                        <MaterialCommunityIcons
-                          name={getSafeIcon(acc.icon)}
+                        {/* 🔥 USING UNIVERSAL ICON HERE */}
+                        <UniversalIcon
+                          icon={getUniversalIcon(acc.icon)}
                           size={24}
                           color={acc.color}
                         />
@@ -479,7 +475,7 @@ export default function AccountsScreen() {
         )}
       </ScrollView>
 
-      {/* --- CASHEW-STYLE ACCOUNT DETAILS MODAL (KEPT EXACTLY THE SAME) --- */}
+      {/* --- ACCOUNT DETAILS MODAL --- */}
       <Modal
         visible={!!selectedAcc}
         animationType="slide"

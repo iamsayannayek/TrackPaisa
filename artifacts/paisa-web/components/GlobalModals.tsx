@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
   Alert,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -12,7 +11,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+// 🔥 NOW IMPORTING MULTIPLE VECTOR ICON PACKAGES
+import {
+  MaterialCommunityIcons,
+  FontAwesome5,
+  Ionicons,
+  MaterialIcons,
+  Feather,
+} from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
 import { calculateNextDate } from "@/context/AppContext";
@@ -285,6 +291,39 @@ function ColorPicker({
   );
 }
 
+// 🔥 NEW: UNIVERSAL MIXED ICON RENDERER
+export function UniversalIcon({
+  icon,
+  size,
+  color,
+}: {
+  icon: string;
+  size: number;
+  color: string;
+}) {
+  if (!icon)
+    return <FontAwesome5 name="university" size={size} color={color} />;
+
+  const parts = icon.split(":");
+  const family = parts.length === 2 ? parts[0] : "MaterialCommunityIcons";
+  const name = parts.length === 2 ? parts[1] : icon;
+
+  switch (family) {
+    case "FontAwesome5":
+      return <FontAwesome5 name={name as any} size={size} color={color} />;
+    case "Ionicons":
+      return <Ionicons name={name as any} size={size} color={color} />;
+    case "MaterialIcons":
+      return <MaterialIcons name={name as any} size={size} color={color} />;
+    case "Feather":
+      return <Feather name={name as any} size={size} color={color} />;
+    default:
+      return (
+        <MaterialCommunityIcons name={name as any} size={size} color={color} />
+      );
+  }
+}
+
 function IconPicker({
   value,
   onChange,
@@ -297,25 +336,25 @@ function IconPicker({
   const c = useAppColors();
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-      {icons.map((icon) => (
+      {icons.map((iconStr) => (
         <TouchableOpacity
-          key={icon}
-          onPress={() => onChange(icon)}
+          key={iconStr}
+          onPress={() => onChange(iconStr)}
           style={{
             width: 44,
             height: 44,
             borderRadius: 22,
-            backgroundColor: value === icon ? c.primary : c.surfaceElevated,
+            backgroundColor: value === iconStr ? c.primary : c.surfaceElevated,
             alignItems: "center",
             justifyContent: "center",
-            borderWidth: value === icon ? 0 : 1,
+            borderWidth: value === iconStr ? 0 : 1,
             borderColor: c.border,
           }}
         >
-          <MaterialCommunityIcons
-            name={icon as any}
-            size={22}
-            color={value === icon ? "#fff" : c.textSecondary}
+          <UniversalIcon
+            icon={iconStr}
+            size={20}
+            color={value === iconStr ? "#fff" : c.textSecondary}
           />
         </TouchableOpacity>
       ))}
@@ -323,150 +362,167 @@ function IconPicker({
   );
 }
 
+// Returns FA5 safely if corrupted
 const getSafeFormIcon = (
   icon: string | undefined,
   type: "ACCOUNT" | "BUDGET" | "GOAL" | "INV",
 ) => {
-  if (!icon)
-    return type === "ACCOUNT"
-      ? "bank"
-      : type === "GOAL"
-        ? "bullseye-arrow"
-        : type === "INV"
-          ? "chart-line"
-          : "label-outline";
-  const validMaterialIcons = [
-    "bank",
-    "credit-card-multiple",
-    "wallet-bifold",
-    "piggy-bank",
-    "briefcase",
-    "cash",
-    "cellphone-nfc",
-    "safe",
-    "finance",
-    "bitcoin",
-    "cash-multiple",
-    "hand-coin",
-    "home",
-    "cart",
-    "car",
-    "gas-station",
-    "food-fork-drink",
-    "coffee",
-    "lightning-bolt",
-    "wifi",
-    "movie-open",
-    "baby-carriage",
-    "paw",
-    "face-woman-shimmer",
-    "heart-pulse",
-    "hospital-box",
-    "pill",
-    "tshirt-crew",
-    "shoe-sneaker",
-    "dumbbell",
-    "book-open-page-variant",
-    "airplane",
-    "gift",
-    "bank-transfer",
-    "shield-check",
-    "leaf",
-    "palette",
-    "emoticon-happy",
-    "face-man",
-    "spray",
-    "label-outline",
-    "bullseye-arrow",
-    "laptop",
-    "cellphone",
-    "school",
-    "ring",
-    "camera",
-    "umbrella-beach",
-    "chart-pie",
-    "lock",
-    "cash-clock",
-    "chart-line",
-  ];
-  if (validMaterialIcons.includes(icon)) return icon;
+  if (typeof icon === "string" && icon.trim() !== "") return icon;
   return type === "ACCOUNT"
-    ? "bank"
+    ? "FontAwesome5:university"
     : type === "BUDGET"
-      ? "label-outline"
+      ? "FontAwesome5:tag"
       : type === "INV"
-        ? "chart-line"
-        : "bullseye-arrow";
+        ? "FontAwesome5:chart-line"
+        : "FontAwesome5:bullseye";
 };
 
+// 🔥 100% BULLETPROOF ICONS USING MIXED FAMILIES (FontAwesome5 & Ionicons mostly)
 const ACCOUNT_ICONS = [
-  "bank",
-  "credit-card-multiple",
-  "wallet-bifold",
-  "cellphone-nfc",
-  "piggy-bank",
-  "safe",
-  "finance",
-  "bitcoin",
-  "cash-multiple",
-  "hand-coin",
-  "briefcase",
+  "FontAwesome5:university",
+  "FontAwesome5:credit-card",
+  "FontAwesome5:wallet",
+  "Ionicons:phone-portrait-outline",
+  "FontAwesome5:piggy-bank",
+  "FontAwesome5:shield-alt",
+  "FontAwesome5:chart-bar",
+  "FontAwesome5:bitcoin",
+  "FontAwesome5:money-bill-wave",
+  "FontAwesome5:briefcase",
 ];
+
+// 🔥 MASSIVELY EXPANDED BUDGET ICONS
 const BUDGET_ICONS = [
-  "home",
-  "cart",
-  "car",
-  "gas-station",
-  "food-fork-drink",
-  "coffee",
-  "lightning-bolt",
-  "wifi",
-  "movie-open",
-  "baby-carriage",
-  "paw",
-  "face-woman-shimmer",
-  "heart-pulse",
-  "pill",
-  "tshirt-crew",
-  "dumbbell",
-  "book-open-page-variant",
-  "airplane",
-  "gift",
-  "bank-transfer",
-  "shield-check",
-  "piggy-bank",
-  "palette",
-  "label-outline",
+  // Housing & Utilities
+  "FontAwesome5:home",
+  "FontAwesome5:bolt",
+  "MaterialIcons:water-drop",
+  "FontAwesome5:fire",
+  "FontAwesome5:wifi",
+  "FontAwesome5:mobile-alt",
+  "FontAwesome5:phone",
+  "FontAwesome5:tools",
+  "FontAwesome5:wrench",
+  "FontAwesome5:couch",
+  "FontAwesome5:bed",
+
+  // Food & Dining
+  "Ionicons:restaurant",
+  "FontAwesome5:shopping-cart",
+  "FontAwesome5:shopping-bag",
+  "FontAwesome5:apple-alt",
+  "FontAwesome5:pizza-slice",
+  "FontAwesome5:hamburger",
+  "FontAwesome5:coffee",
+  "FontAwesome5:glass-cheers",
+  "FontAwesome5:cocktail",
+  "MaterialIcons:local-grocery-store",
+
+  // Apparel & Personal Care
+  "FontAwesome5:tshirt",
+  "FontAwesome5:shoe-prints",
+  "FontAwesome5:hat-cowboy",
+  "FontAwesome5:cut",
+  "MaterialIcons:spa",
+  "MaterialIcons:dry-cleaning",
+  "FontAwesome5:gem",
+  "FontAwesome5:glasses",
+
+  // Transportation
+  "FontAwesome5:car",
+  "FontAwesome5:gas-pump",
+  "FontAwesome5:bus",
+  "FontAwesome5:train",
+  "FontAwesome5:subway",
+  "FontAwesome5:taxi",
+  "FontAwesome5:motorcycle",
+  "FontAwesome5:bicycle",
+  "FontAwesome5:plane",
+  "FontAwesome5:ship",
+
+  // Family, Pets & Relationships
+  "FontAwesome5:users",
+  "FontAwesome5:heart",
+  "FontAwesome5:baby-carriage",
+  "FontAwesome5:baby",
+  "FontAwesome5:paw",
+  "FontAwesome5:bone",
+  "FontAwesome5:cat",
+  "FontAwesome5:dog",
+
+  // Entertainment & Subscriptions
+  "FontAwesome5:music",
+  "FontAwesome5:tv",
+  "FontAwesome5:video",
+  "FontAwesome5:film",
+  "FontAwesome5:ticket-alt",
+  "FontAwesome5:headphones",
+  "FontAwesome5:gamepad",
+  "FontAwesome5:dice",
+  "FontAwesome5:gift",
+
+  // Health & Fitness
+  "FontAwesome5:medkit",
+  "FontAwesome5:pills",
+  "FontAwesome5:stethoscope",
+  "FontAwesome5:hospital",
+  "FontAwesome5:dumbbell",
+  "FontAwesome5:running",
+  "FontAwesome5:tooth",
+  "MaterialIcons:health-and-safety",
+
+  // Education & Work
+  "FontAwesome5:book",
+  "FontAwesome5:graduation-cap",
+  "FontAwesome5:school",
+  "FontAwesome5:chalkboard-teacher",
+  "FontAwesome5:pencil-alt",
+  "FontAwesome5:briefcase",
+
+  // Finance & Misc
+  "FontAwesome5:exchange-alt",
+  "FontAwesome5:shield-alt",
+  "FontAwesome5:piggy-bank",
+  "FontAwesome5:tag",
+  "FontAwesome5:file-invoice-dollar",
+  "FontAwesome5:hand-holding-usd",
+  "FontAwesome5:chart-pie",
+  "FontAwesome5:donate",
 ];
+
 const GOAL_ICONS = [
-  "bullseye-arrow",
-  "airplane",
-  "car",
-  "home",
-  "laptop",
-  "cellphone",
-  "school",
-  "ring",
-  "baby-carriage",
-  "camera",
-  "umbrella-beach",
-  "cart",
-  "gift",
-  "piggy-bank",
-  "cash",
+  "FontAwesome5:bullseye",
+  "FontAwesome5:plane",
+  "FontAwesome5:car",
+  "FontAwesome5:home",
+  "FontAwesome5:laptop",
+  "FontAwesome5:mobile-alt",
+  "FontAwesome5:tv",
+  "FontAwesome5:graduation-cap",
+  "FontAwesome5:ring",
+  "FontAwesome5:users",
+  "FontAwesome5:heart",
+  "FontAwesome5:baby-carriage",
+  "FontAwesome5:camera",
+  "FontAwesome5:umbrella-beach",
+  "FontAwesome5:shopping-cart",
+  "FontAwesome5:gift",
+  "FontAwesome5:piggy-bank",
+  "FontAwesome5:money-bill-wave",
 ];
+
 const INV_ICONS = [
-  "chart-line",
-  "chart-pie",
-  "bank",
-  "shield-check",
-  "lock",
-  "cash-clock",
-  "finance",
-  "bitcoin",
-  "piggy-bank",
-  "trending-up",
-  "briefcase",
+  "FontAwesome5:chart-line",
+  "FontAwesome5:chart-pie",
+  "FontAwesome5:university",
+  "FontAwesome5:shield-alt",
+  "FontAwesome5:lock",
+  "FontAwesome5:hourglass-half",
+  "FontAwesome5:chart-bar",
+  "FontAwesome5:bitcoin",
+  "FontAwesome5:piggy-bank",
+  "Ionicons:trending-up",
+  "FontAwesome5:briefcase",
 ];
 
 const INCOME_CATEGORIES = [
@@ -598,7 +654,7 @@ export function TxModal() {
       </View>
       <Field label="Amount">
         <AmountInput
-          value={form.amount}
+          value={form.amount ?? 0}
           onChangeAmount={(v) => set((p) => ({ ...p, amount: v }))}
           placeholder="0.00"
         />
@@ -695,7 +751,7 @@ export function AccountModal() {
         <Col>
           <Field label="Balance (₹)">
             <AmountInput
-              value={form.balance}
+              value={form.balance ?? 0}
               onChangeAmount={(v) => set((p) => ({ ...p, balance: v }))}
               placeholder="0"
             />
@@ -707,7 +763,7 @@ export function AccountModal() {
           <Col>
             <Field label="Bank Limit (₹)">
               <AmountInput
-                value={form.bankLimit}
+                value={form.bankLimit ?? 0}
                 onChangeAmount={(v) => set((p) => ({ ...p, bankLimit: v }))}
                 placeholder="0"
               />
@@ -716,7 +772,7 @@ export function AccountModal() {
           <Col>
             <Field label="Self Limit (₹)">
               <AmountInput
-                value={form.selfLimit}
+                value={form.selfLimit ?? 0}
                 onChangeAmount={(v) => set((p) => ({ ...p, selfLimit: v }))}
                 placeholder="0"
               />
@@ -773,7 +829,7 @@ export function BudgetModal() {
       </Field>
       <Field label="Monthly Limit (₹)">
         <AmountInput
-          value={form.limit}
+          value={form.limit ?? 0}
           onChangeAmount={(v) => set((p) => ({ ...p, limit: v }))}
           placeholder="0"
         />
@@ -845,7 +901,7 @@ export function CommitmentModal() {
         <Col>
           <Field label="Amount (₹)">
             <AmountInput
-              value={form.amount}
+              value={form.amount ?? 0}
               onChangeAmount={(v) => set((p) => ({ ...p, amount: v }))}
               placeholder="0.00"
             />
@@ -922,7 +978,7 @@ export function GoalModal() {
         <Col>
           <Field label="Target Amount (₹)">
             <AmountInput
-              value={form.target}
+              value={form.target ?? 0}
               onChangeAmount={(v) => set((p) => ({ ...p, target: v }))}
               placeholder="0"
             />
@@ -931,7 +987,7 @@ export function GoalModal() {
         <Col>
           <Field label="Current Saved (₹)">
             <AmountInput
-              value={form.current}
+              value={form.current ?? 0}
               onChangeAmount={(v) => set((p) => ({ ...p, current: v }))}
               placeholder="0"
             />
@@ -1126,7 +1182,7 @@ export function InvestmentModal() {
         <Col>
           <Field label="Contribution (₹)">
             <AmountInput
-              value={form.monthlyContribution}
+              value={form.monthlyContribution ?? 0}
               onChangeAmount={(v) =>
                 set((p) => ({ ...p, monthlyContribution: v }))
               }
@@ -1137,7 +1193,7 @@ export function InvestmentModal() {
         <Col>
           <Field label="Total Invested (₹)">
             <AmountInput
-              value={form.totalInvested}
+              value={form.totalInvested ?? 0}
               onChangeAmount={(v) => set((p) => ({ ...p, totalInvested: v }))}
               placeholder="0"
             />
@@ -1146,13 +1202,12 @@ export function InvestmentModal() {
       </Row>
       <Field label="Current Value (₹)">
         <AmountInput
-          value={form.currentValue}
+          value={form.currentValue ?? 0}
           onChangeAmount={(v) => set((p) => ({ ...p, currentValue: v }))}
           placeholder="0"
         />
       </Field>
 
-      {/* 🔥 ADDED: Icon Picker AND Color Picker for Investments! */}
       <Field label="Choose an Icon">
         <IconPicker
           icons={INV_ICONS}
@@ -1172,7 +1227,7 @@ export function InvestmentModal() {
           <Col>
             <Field label="Interest Rate (%)">
               <AmountInput
-                value={form.interestRate}
+                value={form.interestRate ?? 0}
                 onChangeAmount={(v) => set((p) => ({ ...p, interestRate: v }))}
                 placeholder="7.5"
               />
@@ -1181,7 +1236,7 @@ export function InvestmentModal() {
           <Col>
             <Field label="Duration (Days)">
               <AmountInput
-                value={form.durationDays}
+                value={form.durationDays ?? 0}
                 onChangeAmount={(v) => set((p) => ({ ...p, durationDays: v }))}
                 placeholder="365"
                 allowDecimals={false}
@@ -1197,7 +1252,7 @@ export function InvestmentModal() {
             <Col>
               <Field label="Tenure (Years)">
                 <AmountInput
-                  value={form.tenureYears}
+                  value={form.tenureYears ?? 0}
                   onChangeAmount={(v) => set((p) => ({ ...p, tenureYears: v }))}
                   placeholder="e.g. 15"
                   allowDecimals={false}
@@ -1207,7 +1262,7 @@ export function InvestmentModal() {
             <Col>
               <Field label={`Paid (${periodLabel})`}>
                 <AmountInput
-                  value={form.paidCount}
+                  value={form.paidCount ?? 0}
                   onChangeAmount={(v) => set((p) => ({ ...p, paidCount: v }))}
                   placeholder="e.g. 1"
                   allowDecimals={false}

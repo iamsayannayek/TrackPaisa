@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons"; // <-- CHANGED TO PREMIUM ICONS
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
 import { calculateNextDate } from "@/context/AppContext";
@@ -85,7 +85,12 @@ function AppModal({
                 backgroundColor: c.surfaceElevated,
               }}
             >
-              <Feather name="x" size={18} color={c.textSecondary} />
+              {/* Premium Close Icon */}
+              <MaterialCommunityIcons
+                name="close"
+                size={20}
+                color={c.textSecondary}
+              />
             </TouchableOpacity>
           </View>
 
@@ -224,7 +229,12 @@ function DeleteBtn({ onPress }: { onPress: () => void }) {
       }}
       activeOpacity={0.85}
     >
-      <Feather name="trash-2" size={18} color={c.destructive} />
+      {/* Premium Trash Icon */}
+      <MaterialCommunityIcons
+        name="trash-can-outline"
+        size={20}
+        color={c.destructive}
+      />
     </TouchableOpacity>
   );
 }
@@ -278,28 +288,29 @@ function ColorPicker({
   );
 }
 
+// PREMIUM BANKING ICONS MAP
 const ACCOUNT_ICON_OPTIONS: SelectOption[] = [
-  { value: "Landmark", label: "🏦 Bank" },
-  { value: "CreditCard", label: "💳 Card" },
-  { value: "Wallet", label: "👛 Wallet" },
-  { value: "PiggyBank", label: "🐷 Piggy Bank" },
-  { value: "Briefcase", label: "💼 Briefcase" },
-  { value: "DollarSign", label: "💵 Dollar" },
+  { value: "bank", label: "🏦 Bank" },
+  { value: "credit-card-multiple", label: "💳 Card" },
+  { value: "wallet-bifold", label: "👛 Wallet" },
+  { value: "piggy-bank", label: "🐷 Piggy Bank" },
+  { value: "briefcase", label: "💼 Briefcase" },
+  { value: "cash", label: "💵 Cash" },
 ];
 
 const BUDGET_ICON_OPTIONS: SelectOption[] = [
-  { value: "Wallet", label: "👛 Wallet" },
-  { value: "Coffee", label: "☕ Food & Coffee" },
-  { value: "Car", label: "🚗 Transport" },
-  { value: "ShoppingCart", label: "🛒 Shopping" },
-  { value: "Zap", label: "⚡ Bills" },
-  { value: "Heart", label: "❤️ Family" },
-  { value: "Activity", label: "🏃 Health" },
-  { value: "Book", label: "📚 Education" },
-  { value: "Music", label: "🎵 Entertainment" },
-  { value: "Home", label: "🏠 Housing" },
-  { value: "Gift", label: "🎁 Gifts" },
-  { value: "Globe", label: "✈️ Travel" },
+  { value: "wallet-bifold", label: "👛 Wallet" },
+  { value: "coffee", label: "☕ Food & Coffee" },
+  { value: "car", label: "🚗 Transport" },
+  { value: "cart", label: "🛒 Shopping" },
+  { value: "lightning-bolt", label: "⚡ Bills" },
+  { value: "heart", label: "❤️ Family" },
+  { value: "heart-pulse", label: "🏃 Health" },
+  { value: "book-open-page-variant", label: "📚 Education" },
+  { value: "music", label: "🎵 Entertainment" },
+  { value: "home", label: "🏠 Housing" },
+  { value: "gift", label: "🎁 Gifts" },
+  { value: "airplane", label: "✈️ Travel" },
 ];
 
 const INCOME_CATEGORIES = [
@@ -324,24 +335,21 @@ export function TxModal() {
   const form = app.txForm;
   const set = app.setTxForm;
 
-  // Track if we've shown the warning so we don't spam the user
   const [hasWarnedBudget, setHasWarnedBudget] = useState(false);
 
-  // Reset the warning flag whenever the modal is closed
   useEffect(() => {
     if (!app.isTxModalOpen) {
       setHasWarnedBudget(false);
     }
   }, [app.isTxModalOpen]);
 
-  // SMART WARNING LOGIC: Trigger an alert if they have 0 budgets
   useEffect(() => {
     if (
       app.isTxModalOpen &&
       form.type === "EXPENSE" &&
       app.budgets.length === 0 &&
       !hasWarnedBudget &&
-      !app.editingTx // Don't annoy them if they are just editing an old transaction
+      !app.editingTx
     ) {
       Alert.alert(
         "No Budgets Found",
@@ -350,7 +358,6 @@ export function TxModal() {
       );
       setHasWarnedBudget(true);
 
-      // Auto-select "Others" so they aren't stuck with an empty field
       if (!form.category) {
         set((p) => ({ ...p, category: "📦 Others" }));
       }
@@ -389,16 +396,14 @@ export function TxModal() {
     })),
   ];
 
-  // --- STRICT CATEGORY LOGIC ---
   const isIncome = form.type === "INCOME";
 
-  // For expenses, if they have no budgets, gracefully fallback to ONLY "📦 Others"
   const expenseCategories =
     app.budgets.length > 0 ? app.budgets.map((b) => b.category) : ["📦 Others"];
 
   const dynamicCategories = Array.from(
     new Set([
-      ...(form.category ? [form.category] : []), // Preserve current legacy string if editing an old Tx
+      ...(form.category ? [form.category] : []),
       ...(isIncome ? INCOME_CATEGORIES : expenseCategories),
     ]),
   );
@@ -596,7 +601,7 @@ export function AccountModal() {
       <Field label="Icon">
         <SelectPicker
           options={ACCOUNT_ICON_OPTIONS}
-          value={form.icon ?? "Landmark"}
+          value={form.icon ?? "bank"} // DEFAULT TO BANK
           onChange={(v) => set((p) => ({ ...p, icon: v }))}
           placeholder="Select icon..."
         />
@@ -646,7 +651,7 @@ export function BudgetModal() {
       <Field label="Icon">
         <SelectPicker
           options={BUDGET_ICON_OPTIONS}
-          value={form.icon ?? "Wallet"}
+          value={form.icon ?? "wallet-bifold"} // DEFAULT PREMIUM WALLET
           onChange={(v) => set((p) => ({ ...p, icon: v }))}
           placeholder="Select icon..."
         />

@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons"; // <-- CHANGED TO PREMIUM ICONS
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
 import { calculateNextDate } from "@/context/AppContext";
@@ -85,7 +85,6 @@ function AppModal({
                 backgroundColor: c.surfaceElevated,
               }}
             >
-              {/* Premium Close Icon */}
               <MaterialCommunityIcons
                 name="close"
                 size={20}
@@ -229,7 +228,6 @@ function DeleteBtn({ onPress }: { onPress: () => void }) {
       }}
       activeOpacity={0.85}
     >
-      {/* Premium Trash Icon */}
       <MaterialCommunityIcons
         name="trash-can-outline"
         size={20}
@@ -239,7 +237,6 @@ function DeleteBtn({ onPress }: { onPress: () => void }) {
   );
 }
 
-// ColorPicker and icon option constants
 const COLORS = [
   "#3b82f6",
   "#6366f1",
@@ -288,14 +285,55 @@ function ColorPicker({
   );
 }
 
-// PREMIUM BANKING ICONS MAP
+// 🔥 SMART LEGACY MAPPER: Converts old broken icons to new premium ones automatically
+const getSafeFormIcon = (
+  icon: string | undefined,
+  type: "ACCOUNT" | "BUDGET",
+) => {
+  if (!icon) return type === "ACCOUNT" ? "bank" : "wallet-bifold";
+
+  const accMap: Record<string, string> = {
+    Landmark: "bank",
+    CreditCard: "credit-card-multiple",
+    Wallet: "wallet-bifold",
+    PiggyBank: "piggy-bank",
+    Briefcase: "briefcase",
+    DollarSign: "cash",
+  };
+
+  const budgetMap: Record<string, string> = {
+    Wallet: "wallet-bifold",
+    Coffee: "coffee",
+    Car: "car",
+    ShoppingCart: "cart",
+    Zap: "lightning-bolt",
+    Heart: "heart",
+    Activity: "heart-pulse",
+    Book: "book-open-page-variant",
+    Music: "music",
+    Home: "home",
+    Gift: "gift",
+    Globe: "airplane",
+  };
+
+  if (type === "ACCOUNT") return accMap[icon] || icon;
+  if (type === "BUDGET") return budgetMap[icon] || icon;
+  return icon;
+};
+
+// 🔥 EXPANDED FINTECH ACCOUNT ICONS
 const ACCOUNT_ICON_OPTIONS: SelectOption[] = [
-  { value: "bank", label: "🏦 Bank" },
-  { value: "credit-card-multiple", label: "💳 Card" },
-  { value: "wallet-bifold", label: "👛 Wallet" },
-  { value: "piggy-bank", label: "🐷 Piggy Bank" },
-  { value: "briefcase", label: "💼 Briefcase" },
-  { value: "cash", label: "💵 Cash" },
+  { value: "bank", label: "🏦 Traditional Bank" },
+  { value: "credit-card-multiple", label: "💳 Credit Card" },
+  { value: "wallet-bifold", label: "👛 Physical Wallet" },
+  { value: "cellphone-nfc", label: "📱 UPI / Mobile App" },
+  { value: "piggy-bank", label: "🐷 Savings / Piggy Bank" },
+  { value: "safe", label: "🗄️ Vault / Safe" },
+  { value: "finance", label: "📈 Investment Acct" },
+  { value: "bitcoin", label: "₿ Crypto Wallet" },
+  { value: "cash-multiple", label: "💵 Cash Stack" },
+  { value: "hand-coin", label: "🤝 Loan / Borrowed" },
+  { value: "briefcase", label: "💼 Business Acct" },
 ];
 
 const BUDGET_ICON_OPTIONS: SelectOption[] = [
@@ -338,9 +376,7 @@ export function TxModal() {
   const [hasWarnedBudget, setHasWarnedBudget] = useState(false);
 
   useEffect(() => {
-    if (!app.isTxModalOpen) {
-      setHasWarnedBudget(false);
-    }
+    if (!app.isTxModalOpen) setHasWarnedBudget(false);
   }, [app.isTxModalOpen]);
 
   useEffect(() => {
@@ -357,10 +393,7 @@ export function TxModal() {
         [{ text: "Got it" }],
       );
       setHasWarnedBudget(true);
-
-      if (!form.category) {
-        set((p) => ({ ...p, category: "📦 Others" }));
-      }
+      if (!form.category) set((p) => ({ ...p, category: "📦 Others" }));
     }
   }, [
     app.isTxModalOpen,
@@ -397,17 +430,14 @@ export function TxModal() {
   ];
 
   const isIncome = form.type === "INCOME";
-
   const expenseCategories =
     app.budgets.length > 0 ? app.budgets.map((b) => b.category) : ["📦 Others"];
-
   const dynamicCategories = Array.from(
     new Set([
       ...(form.category ? [form.category] : []),
       ...(isIncome ? INCOME_CATEGORIES : expenseCategories),
     ]),
   );
-
   const catOptions: SelectOption[] = dynamicCategories.map((cat) => ({
     value: cat,
     label: cat,
@@ -461,7 +491,6 @@ export function TxModal() {
           placeholder="0.00"
         />
       </Field>
-
       <Row>
         <Col>
           <Field label="From Account">
@@ -495,14 +524,12 @@ export function TxModal() {
           )}
         </Col>
       </Row>
-
       <Field label="Date">
         <DateInput
           value={form.date ?? ""}
           onChange={(v) => set((p) => ({ ...p, date: v }))}
         />
       </Field>
-
       <Field label="Note / Merchant">
         <StyledInput
           value={form.note ?? ""}
@@ -510,7 +537,6 @@ export function TxModal() {
           placeholder="What was this for?"
         />
       </Field>
-
       <Row>
         {app.editingTx && <DeleteBtn onPress={app.handleDeleteTx} />}
         <SaveBtn onPress={app.handleSaveTx} label="Save Transaction" />
@@ -601,7 +627,7 @@ export function AccountModal() {
       <Field label="Icon">
         <SelectPicker
           options={ACCOUNT_ICON_OPTIONS}
-          value={form.icon ?? "bank"} // DEFAULT TO BANK
+          value={getSafeFormIcon(form.icon, "ACCOUNT")} // 🔥 SAFELY FIXES BROKEN ICONS
           onChange={(v) => set((p) => ({ ...p, icon: v }))}
           placeholder="Select icon..."
         />
@@ -613,7 +639,6 @@ export function AccountModal() {
           onChange={(v) => set((p) => ({ ...p, color: v }))}
         />
       </Field>
-
       <Row>
         {app.editingAcc && <DeleteBtn onPress={app.handleDeleteAccount} />}
         <SaveBtn onPress={app.handleSaveAccount} label="Save Account" />
@@ -651,7 +676,7 @@ export function BudgetModal() {
       <Field label="Icon">
         <SelectPicker
           options={BUDGET_ICON_OPTIONS}
-          value={form.icon ?? "wallet-bifold"} // DEFAULT PREMIUM WALLET
+          value={getSafeFormIcon(form.icon, "BUDGET")} // 🔥 SAFELY FIXES BROKEN ICONS
           onChange={(v) => set((p) => ({ ...p, icon: v }))}
           placeholder="Select icon..."
         />
@@ -858,7 +883,6 @@ export function InvestmentModal() {
 
   const isMaturity = ["FD", "RD", "Others"].includes(form.type ?? "");
   const showTenureUI = ["LIC", "RD"].includes(form.type ?? "");
-
   const freqMultiplier =
     form.frequency === "Monthly"
       ? 12
@@ -895,7 +919,6 @@ export function InvestmentModal() {
           placeholder="e.g. LIC Jeevan Umang"
         />
       </Field>
-
       <Row>
         <Col>
           <Field label="Type">
@@ -927,7 +950,6 @@ export function InvestmentModal() {
           </Field>
         </Col>
       </Row>
-
       <Row>
         <Col>
           <Field label="Contribution (₹)">
@@ -950,7 +972,6 @@ export function InvestmentModal() {
           </Field>
         </Col>
       </Row>
-
       <Field label="Current Value (₹)">
         <AmountInput
           value={form.currentValue}
@@ -1007,7 +1028,6 @@ export function InvestmentModal() {
               </Field>
             </Col>
           </Row>
-
           {totalPeriods > 0 && (
             <View
               style={{
@@ -1086,7 +1106,6 @@ export function InvestmentModal() {
           trackColor={{ false: c.border, true: c.primary }}
         />
       </View>
-
       <View
         style={{
           flexDirection: "row",
@@ -1110,7 +1129,6 @@ export function InvestmentModal() {
           trackColor={{ false: c.border, true: c.primary }}
         />
       </View>
-
       <View
         style={{
           flexDirection: "row",

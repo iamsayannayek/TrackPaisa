@@ -9,7 +9,7 @@ import {
   Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Svg, { Path, Defs, LinearGradient, Stop } from "react-native-svg";
 import { useApp, Account } from "@/context/AppContext";
 import { useAppColors } from "@/hooks/useAppColors";
@@ -22,17 +22,40 @@ const fmt = (n: number) =>
     minimumFractionDigits: 0,
   })}`;
 
-// Safely map saved DB icons to valid Feather icons
-const getSafeIcon = (iconStr: string): keyof typeof Feather.glyphMap => {
-  const map: Record<string, keyof typeof Feather.glyphMap> = {
-    Landmark: "home",
-    CreditCard: "credit-card",
-    Wallet: "briefcase",
-    PiggyBank: "box",
+// Safely map both OLD legacy icons and NEW premium icons
+const getSafeIcon = (
+  iconStr: string,
+): keyof typeof MaterialCommunityIcons.glyphMap => {
+  if (!iconStr) return "bank"; // Absolute fallback
+
+  const validIcons = [
+    "bank",
+    "credit-card-multiple",
+    "wallet-bifold",
+    "piggy-bank",
+    "safe",
+    "cellphone-nfc",
+    "finance",
+    "bitcoin",
+    "cash-multiple",
+    "briefcase",
+    "cash",
+    "hand-coin",
+  ];
+  if (validIcons.includes(iconStr)) {
+    return iconStr as keyof typeof MaterialCommunityIcons.glyphMap;
+  }
+
+  const map: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
+    Landmark: "bank",
+    CreditCard: "credit-card-multiple",
+    Wallet: "wallet-bifold",
+    PiggyBank: "piggy-bank",
     Briefcase: "briefcase",
-    DollarSign: "dollar-sign",
+    DollarSign: "cash",
   };
-  return map[iconStr] || "credit-card";
+
+  return map[iconStr] || "bank";
 };
 
 export default function AccountsScreen() {
@@ -40,8 +63,6 @@ export default function AccountsScreen() {
   const c = useAppColors();
 
   const [selectedAcc, setSelectedAcc] = useState<Account | null>(null);
-
-  // NEW: Filter state for the Recent Activity list
   const [txFilter, setTxFilter] = useState<"ALL" | "INCOME" | "EXPENSE">("ALL");
 
   // --- 1. MAIN SCREEN CALCULATIONS ---
@@ -50,20 +71,22 @@ export default function AccountsScreen() {
     [app.accounts],
   );
 
-  // Group accounts logically like Cashew
+  // Group accounts logically for the UI Sections
   const groupedAccounts = useMemo(() => {
     const groups: Record<string, Account[]> = {
+      CASH_WALLET: [],
       BANK: [],
       CREDIT_CARD: [],
-      CASH_WALLET: [],
       INVESTMENT: [],
     };
-    app.accounts.forEach((a) => groups[a.type]?.push(a));
+    app.accounts.forEach((a) => {
+      if (groups[a.type]) groups[a.type].push(a);
+    });
 
     return [
-      { title: "Banking", data: groups.BANK },
+      { title: "Cash", data: groups.CASH_WALLET },
+      { title: "Bank Accounts", data: groups.BANK },
       { title: "Credit Cards", data: groups.CREDIT_CARD },
-      { title: "Cash & Wallets", data: groups.CASH_WALLET },
       { title: "Investments", data: groups.INVESTMENT },
     ].filter((g) => g.data.length > 0);
   }, [app.accounts]);
@@ -80,7 +103,6 @@ export default function AccountsScreen() {
         txs: [],
       };
 
-    // 1. Filter Transactions for this account
     const txs = app.transactions
       .filter(
         (t) => t.sourceId === selectedAcc.id || t.destId === selectedAcc.id,
@@ -92,7 +114,6 @@ export default function AccountsScreen() {
     let currentBal = selectedAcc.balance;
     const history = [{ val: currentBal }];
 
-    // 2. Walk backward through time to calculate historical balances
     txs.forEach((t) => {
       const isIncome =
         (t.type === "INCOME" && t.sourceId === selectedAcc.id) ||
@@ -103,19 +124,17 @@ export default function AccountsScreen() {
 
       if (isIncome) {
         moneyIn += t.amount;
-        currentBal -= t.amount; // Reversing time: subtract income to get previous balance
+        currentBal -= t.amount;
       } else if (isExpense) {
         moneyOut += t.amount;
-        currentBal += t.amount; // Reversing time: add expense to get previous balance
+        currentBal += t.amount;
       }
       history.push({ val: currentBal });
     });
 
-    // 3. Format data for the SVG Line Chart (Oldest to Newest)
     history.reverse();
-    // Ensure we have at least 2 points for a line
     if (history.length === 1) history.push({ val: history[0].val });
-    const pts = history.slice(-15); // Show up to the last 15 interactions
+    const pts = history.slice(-15);
     const vals = pts.map((p) => p.val);
     const min = Math.min(...vals);
     const max = Math.max(...vals);
@@ -140,8 +159,7 @@ export default function AccountsScreen() {
 
       if (txFilter === "ALL") return true;
       if (txFilter === "INCOME") return isMoneyIn;
-      if (txFilter === "EXPENSE") return !isMoneyIn; // If it's not money in, it's money out for this account
-
+      if (txFilter === "EXPENSE") return !isMoneyIn;
       return true;
     });
   }, [accDetails.txs, txFilter, selectedAcc]);
@@ -161,7 +179,6 @@ export default function AccountsScreen() {
     const points = chartData
       .map((val, i) => {
         const x = (i / (chartData.length - 1)) * chartW;
-        // Avoid division by zero if min == max
         const range = maxVal - minVal || 1;
         const y = chartH - pad - ((val - minVal) / range) * (chartH - pad * 2);
         return `${x},${y}`;
@@ -213,14 +230,13 @@ export default function AccountsScreen() {
         translucent={false}
       />
 
-      {/* --- MAIN ACCOUNTS LIST --- */}
       <View style={{ padding: 16, paddingBottom: 8 }}>
         <View
           style={{
             flexDirection: "row",
             justifyContent: "space-between",
             alignItems: "center",
-            marginBottom: 12,
+            marginBottom: 20,
           }}
         >
           <Text style={{ color: c.text, fontSize: 24, fontWeight: "800" }}>
@@ -231,42 +247,50 @@ export default function AccountsScreen() {
             style={{
               backgroundColor: c.primary,
               borderRadius: 10,
-              paddingHorizontal: 12,
+              paddingHorizontal: 14,
               paddingVertical: 8,
               flexDirection: "row",
               alignItems: "center",
               gap: 6,
             }}
           >
-            <Feather name="plus" size={16} color="#fff" />
+            <MaterialCommunityIcons name="plus" size={18} color="#fff" />
             <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>
               Add
             </Text>
           </TouchableOpacity>
         </View>
 
-        <Text
+        {/* --- TOTAL BALANCE CARD --- */}
+        <View
           style={{
-            color: c.textSecondary,
-            fontSize: 13,
-            fontWeight: "600",
-            marginBottom: 4,
+            backgroundColor: c.surfaceElevated,
+            borderRadius: c.radius + 4,
+            padding: 20,
+            marginBottom: 12,
+            borderWidth: 1,
+            borderColor: c.border,
           }}
         >
-          Total Balance
-        </Text>
-        <Text
-          style={{
-            color: c.text,
-            fontSize: 32,
-            fontWeight: "800",
-            marginBottom: 20,
-          }}
-        >
-          {fmt(totalBalance)}
-        </Text>
+          <Text
+            style={{
+              color: c.textSecondary,
+              fontSize: 12,
+              fontWeight: "600",
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+              marginBottom: 4,
+            }}
+          >
+            Total Balance
+          </Text>
+          <Text style={{ color: c.text, fontSize: 32, fontWeight: "800" }}>
+            {fmt(totalBalance)}
+          </Text>
+        </View>
       </View>
 
+      {/* --- GROUPED LIST & CC PROGRESS BAR RESTORED --- */}
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 110 }}>
         {groupedAccounts.length === 0 ? (
           <View
@@ -279,7 +303,11 @@ export default function AccountsScreen() {
               borderColor: c.cardBorder,
             }}
           >
-            <Feather name="credit-card" size={40} color={c.mutedForeground} />
+            <MaterialCommunityIcons
+              name="wallet-outline"
+              size={48}
+              color={c.mutedForeground}
+            />
             <Text
               style={{ color: c.mutedForeground, marginTop: 12, fontSize: 15 }}
             >
@@ -303,78 +331,155 @@ export default function AccountsScreen() {
                 {group.title}
               </Text>
 
-              {group.data.map((acc) => (
-                <TouchableOpacity
-                  key={acc.id}
-                  onPress={() => {
-                    setSelectedAcc(acc);
-                    setTxFilter("ALL"); // Reset filter when opening a new account
-                  }}
-                  activeOpacity={0.7}
-                  style={{
-                    backgroundColor: c.card,
-                    borderRadius: c.radius,
-                    padding: 16,
-                    marginBottom: 10,
-                    borderWidth: 1,
-                    borderColor: c.cardBorder,
-                    flexDirection: "row",
-                    alignItems: "center",
-                  }}
-                >
-                  <View
+              {group.data.map((acc) => {
+                // RESTORED CREDIT CARD PROGRESS BAR LOGIC
+                const isCC = acc.type === "CREDIT_CARD";
+                const limit = acc.selfLimit || acc.bankLimit || 0;
+                const spent = acc.balance < 0 ? Math.abs(acc.balance) : 0;
+                const pct =
+                  limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
+
+                return (
+                  <TouchableOpacity
+                    key={acc.id}
+                    onPress={() => {
+                      setSelectedAcc(acc);
+                      setTxFilter("ALL");
+                    }}
+                    activeOpacity={0.7}
                     style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 12,
-                      backgroundColor: acc.color + "22",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      marginRight: 14,
+                      backgroundColor: c.card,
+                      borderRadius: c.radius,
+                      padding: 16,
+                      marginBottom: 10,
+                      borderWidth: 1,
+                      borderColor: c.cardBorder,
+                      flexDirection: "column", // Allow stacking for progress bar
                     }}
                   >
-                    <Feather
-                      name={getSafeIcon(acc.icon)}
-                      size={20}
-                      color={acc.color}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{ color: c.text, fontSize: 16, fontWeight: "700" }}
+                    {/* Top Row: Icon, Details, Balance */}
+                    <View
+                      style={{ flexDirection: "row", alignItems: "center" }}
                     >
-                      {acc.name}
-                    </Text>
-                    {acc.purpose ? (
-                      <Text
+                      <View
                         style={{
-                          color: c.textSecondary,
-                          fontSize: 12,
-                          marginTop: 2,
+                          width: 44,
+                          height: 44,
+                          borderRadius: 12,
+                          backgroundColor: acc.color + "22",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          marginRight: 14,
                         }}
                       >
-                        {acc.purpose}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <Text
-                    style={{
-                      color: acc.balance >= 0 ? c.text : c.expense,
-                      fontSize: 16,
-                      fontWeight: "700",
-                    }}
-                  >
-                    {acc.balance < 0 ? "-" : ""}
-                    {fmt(acc.balance)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                        <MaterialCommunityIcons
+                          name={getSafeIcon(acc.icon)}
+                          size={24}
+                          color={acc.color}
+                        />
+                      </View>
+
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            color: c.text,
+                            fontSize: 16,
+                            fontWeight: "700",
+                          }}
+                        >
+                          {acc.name}
+                        </Text>
+                        {acc.purpose ? (
+                          <Text
+                            style={{
+                              color: c.textSecondary,
+                              fontSize: 12,
+                              marginTop: 2,
+                            }}
+                          >
+                            {acc.purpose}
+                          </Text>
+                        ) : null}
+                      </View>
+
+                      <View style={{ alignItems: "flex-end" }}>
+                        <Text
+                          style={{
+                            color: acc.balance >= 0 ? c.text : c.expense,
+                            fontSize: 16,
+                            fontWeight: "700",
+                          }}
+                        >
+                          {acc.balance < 0 ? "-" : ""}
+                          {fmt(acc.balance)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Bottom Row: Restored Progress Bar (Only for Credit Cards) */}
+                    {isCC && limit > 0 && (
+                      <View
+                        style={{
+                          marginTop: 16,
+                          paddingTop: 12,
+                          borderTopWidth: 1,
+                          borderTopColor: c.border,
+                        }}
+                      >
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            marginBottom: 6,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: c.textSecondary,
+                              fontSize: 11,
+                              fontWeight: "600",
+                            }}
+                          >
+                            {fmt(spent)} used
+                          </Text>
+                          <Text
+                            style={{
+                              color: c.textSecondary,
+                              fontSize: 11,
+                              fontWeight: "600",
+                            }}
+                          >
+                            {fmt(limit)} limit
+                          </Text>
+                        </View>
+                        <View
+                          style={{
+                            height: 6,
+                            backgroundColor: c.border,
+                            borderRadius: 3,
+                            overflow: "hidden",
+                          }}
+                        >
+                          <View
+                            style={{
+                              height: 6,
+                              width: `${pct}%`,
+                              backgroundColor: pct > 85 ? c.expense : acc.color,
+                              borderRadius: 3,
+                            }}
+                          />
+                        </View>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           ))
         )}
       </ScrollView>
 
-      {/* --- CASHEW-STYLE ACCOUNT DETAILS MODAL --- */}
+      {/* --- CASHEW-STYLE ACCOUNT DETAILS MODAL (KEPT EXACTLY THE SAME) --- */}
       <Modal
         visible={!!selectedAcc}
         animationType="slide"
@@ -388,7 +493,6 @@ export default function AccountsScreen() {
               backgroundColor={c.background}
             />
 
-            {/* Modal Header */}
             <View
               style={{
                 flexDirection: "row",
@@ -405,7 +509,11 @@ export default function AccountsScreen() {
                   borderRadius: 12,
                 }}
               >
-                <Feather name="chevron-left" size={20} color={c.text} />
+                <MaterialCommunityIcons
+                  name="chevron-left"
+                  size={24}
+                  color={c.text}
+                />
               </TouchableOpacity>
               <Text style={{ color: c.text, fontSize: 16, fontWeight: "700" }}>
                 {selectedAcc.name}
@@ -421,7 +529,11 @@ export default function AccountsScreen() {
                   borderRadius: 12,
                 }}
               >
-                <Feather name="edit-2" size={18} color={selectedAcc.color} />
+                <MaterialCommunityIcons
+                  name="pencil"
+                  size={20}
+                  color={selectedAcc.color}
+                />
               </TouchableOpacity>
             </View>
 
@@ -429,7 +541,6 @@ export default function AccountsScreen() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 60 }}
             >
-              {/* Hero Balance & Chart */}
               <View style={{ alignItems: "center", paddingTop: 16 }}>
                 <Text
                   style={{
@@ -453,11 +564,9 @@ export default function AccountsScreen() {
                   {selectedAcc.balance < 0 ? "-" : ""}
                   {fmt(selectedAcc.balance)}
                 </Text>
-
                 {renderChart()}
               </View>
 
-              {/* Stats Row */}
               <View
                 style={{
                   flexDirection: "row",
@@ -491,9 +600,9 @@ export default function AccountsScreen() {
                         borderRadius: 8,
                       }}
                     >
-                      <Feather
-                        name="arrow-down-left"
-                        size={14}
+                      <MaterialCommunityIcons
+                        name="arrow-bottom-left"
+                        size={16}
                         color={c.income}
                       />
                     </View>
@@ -538,9 +647,9 @@ export default function AccountsScreen() {
                         borderRadius: 8,
                       }}
                     >
-                      <Feather
-                        name="arrow-up-right"
-                        size={14}
+                      <MaterialCommunityIcons
+                        name="arrow-top-right"
+                        size={16}
                         color={c.expense}
                       />
                     </View>
@@ -562,7 +671,6 @@ export default function AccountsScreen() {
                 </View>
               </View>
 
-              {/* Specific Transactions List with TABS */}
               <View style={{ paddingHorizontal: 16 }}>
                 <Text
                   style={{
@@ -575,7 +683,6 @@ export default function AccountsScreen() {
                   Recent Activity
                 </Text>
 
-                {/* Custom Tab Toggles */}
                 <View
                   style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}
                 >
@@ -622,7 +729,11 @@ export default function AccountsScreen() {
                       borderColor: c.cardBorder,
                     }}
                   >
-                    <Feather name="inbox" size={32} color={c.mutedForeground} />
+                    <MaterialCommunityIcons
+                      name="inbox-outline"
+                      size={40}
+                      color={c.mutedForeground}
+                    />
                     <Text
                       style={{
                         color: c.mutedForeground,
@@ -677,11 +788,13 @@ export default function AccountsScreen() {
                             marginRight: 12,
                           }}
                         >
-                          <Feather
+                          <MaterialCommunityIcons
                             name={
-                              isMoneyIn ? "arrow-down-left" : "arrow-up-right"
+                              isMoneyIn
+                                ? "arrow-bottom-left"
+                                : "arrow-top-right"
                             }
-                            size={18}
+                            size={20}
                             color={txColor}
                           />
                         </View>

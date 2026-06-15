@@ -1,6 +1,6 @@
 import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons"; // <-- CHANGED TO PREMIUM ICONS
 import React from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import {
@@ -50,7 +50,11 @@ export default function TabLayout() {
           options={{
             title: "Dashboard",
             tabBarIcon: ({ color }) => (
-              <Feather name="home" size={22} color={color} />
+              <MaterialCommunityIcons
+                name="view-dashboard"
+                size={24}
+                color={color}
+              />
             ),
           }}
         />
@@ -59,7 +63,7 @@ export default function TabLayout() {
           options={{
             title: "Accounts",
             tabBarIcon: ({ color }) => (
-              <Feather name="credit-card" size={22} color={color} />
+              <MaterialCommunityIcons name="wallet" size={24} color={color} />
             ),
           }}
         />
@@ -68,7 +72,11 @@ export default function TabLayout() {
           options={{
             title: "Budget",
             tabBarIcon: ({ color }) => (
-              <Feather name="pie-chart" size={22} color={color} />
+              <MaterialCommunityIcons
+                name="chart-arc"
+                size={24}
+                color={color}
+              />
             ),
           }}
         />
@@ -77,7 +85,7 @@ export default function TabLayout() {
           options={{
             title: "Wealth",
             tabBarIcon: ({ color }) => (
-              <Feather name="trending-up" size={22} color={color} />
+              <MaterialCommunityIcons name="finance" size={24} color={color} />
             ),
           }}
         />
@@ -86,7 +94,11 @@ export default function TabLayout() {
           options={{
             title: "Month End",
             tabBarIcon: ({ color }) => (
-              <Feather name="check-square" size={22} color={color} />
+              <MaterialCommunityIcons
+                name="calendar-check"
+                size={24}
+                color={color}
+              />
             ),
           }}
         />

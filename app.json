@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "4905c361-5f9d-4a9d-a5dc-d6fec4072e2e"
+      }
+    },
+    "android": {
+      "package": "com.imsayan.workspace"
+    }
+  }
+}

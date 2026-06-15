@@ -1119,7 +1119,7 @@ export default function DashboardScreen() {
             >
               {app.profile?.name
                 ? `Hi, ${app.profile.name.split(" ")[0]}! 👋`
-                : "PaisaWeb 💸"}
+                : "PaisaViti 💸"}
             </Text>
           </View>
           <TouchableOpacity

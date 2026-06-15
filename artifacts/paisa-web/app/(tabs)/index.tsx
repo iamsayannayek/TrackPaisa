@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons"; // <-- PREMIUM ICONS
 import { useApp } from "@/context/AppContext";
 import { useAppColors } from "@/hooks/useAppColors";
 import { DonutChart, SavingsLineChart } from "@/components/Charts";
@@ -108,7 +108,7 @@ function SectionHeader({
               borderRadius: 6,
             }}
           >
-            <Feather name="plus" size={14} color={c.primary} />
+            <MaterialCommunityIcons name="plus" size={16} color={c.primary} />
             <Text style={{ color: c.primary, fontSize: 12, fontWeight: "700" }}>
               Add
             </Text>
@@ -170,7 +170,11 @@ function HealthScoreCard({
               justifyContent: "center",
             }}
           >
-            <Feather name="activity" size={24} color={c.mutedForeground} />
+            <MaterialCommunityIcons
+              name="heart-pulse"
+              size={28}
+              color={c.mutedForeground}
+            />
           </View>
         </View>
         <View style={{ flex: 1 }}>
@@ -380,7 +384,11 @@ function AllCommitmentsView({ onClose }: { onClose: () => void }) {
           }}
         >
           <TouchableOpacity onPress={onClose} style={{ marginRight: 12 }}>
-            <Feather name="arrow-left" size={22} color={c.text} />
+            <MaterialCommunityIcons
+              name="arrow-left"
+              size={24}
+              color={c.text}
+            />
           </TouchableOpacity>
           <Text
             style={{ color: c.text, fontSize: 18, fontWeight: "700", flex: 1 }}
@@ -428,7 +436,11 @@ function AllCommitmentsView({ onClose }: { onClose: () => void }) {
         <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 32 }}>
           {filtered.length === 0 ? (
             <View style={{ alignItems: "center", paddingTop: 60 }}>
-              <Feather name="calendar" size={40} color={c.mutedForeground} />
+              <MaterialCommunityIcons
+                name="calendar-check-outline"
+                size={48}
+                color={c.mutedForeground}
+              />
               <Text
                 style={{
                   color: c.mutedForeground,
@@ -626,9 +638,9 @@ function AllCommitmentsView({ onClose }: { onClose: () => void }) {
                               justifyContent: "center",
                             }}
                           >
-                            <Feather
-                              name="edit-2"
-                              size={14}
+                            <MaterialCommunityIcons
+                              name="pencil"
+                              size={16}
                               color={c.textSecondary}
                             />
                           </TouchableOpacity>
@@ -723,7 +735,7 @@ function AllTransactionsView({ onClose }: { onClose: () => void }) {
     return c.transfer;
   };
   const txSign = (type: string) =>
-    type === "INCOME" ? "+" : type === "EXPENSE" ? "−" : "→";
+    type === "INCOME" ? "+" : type === "EXPENSE" ? "−" : "";
 
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
@@ -742,7 +754,11 @@ function AllTransactionsView({ onClose }: { onClose: () => void }) {
           }}
         >
           <TouchableOpacity onPress={onClose} style={{ marginRight: 12 }}>
-            <Feather name="arrow-left" size={22} color={c.text} />
+            <MaterialCommunityIcons
+              name="arrow-left"
+              size={24}
+              color={c.text}
+            />
           </TouchableOpacity>
           <Text
             style={{ color: c.text, fontSize: 18, fontWeight: "700", flex: 1 }}
@@ -790,7 +806,11 @@ function AllTransactionsView({ onClose }: { onClose: () => void }) {
         <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 32 }}>
           {filtered.length === 0 ? (
             <View style={{ alignItems: "center", paddingTop: 60 }}>
-              <Feather name="inbox" size={40} color={c.mutedForeground} />
+              <MaterialCommunityIcons
+                name="inbox-outline"
+                size={48}
+                color={c.mutedForeground}
+              />
               <Text
                 style={{
                   color: c.mutedForeground,
@@ -823,9 +843,32 @@ function AllTransactionsView({ onClose }: { onClose: () => void }) {
                     alignItems: "center",
                   }}
                 >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: txColor(tx.type) + "22",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: 12,
+                    }}
+                  >
+                    <MaterialCommunityIcons
+                      name={
+                        tx.type === "INCOME"
+                          ? "arrow-bottom-left"
+                          : tx.type === "EXPENSE"
+                            ? "arrow-top-right"
+                            : "swap-horizontal"
+                      }
+                      size={20}
+                      color={txColor(tx.type)}
+                    />
+                  </View>
                   <View style={{ flex: 1 }}>
                     <Text
-                      style={{ color: c.text, fontSize: 14, fontWeight: "600" }}
+                      style={{ color: c.text, fontSize: 15, fontWeight: "700" }}
                     >
                       {tx.note || tx.category}
                     </Text>
@@ -833,7 +876,7 @@ function AllTransactionsView({ onClose }: { onClose: () => void }) {
                       style={{
                         color: c.textSecondary,
                         fontSize: 12,
-                        marginTop: 2,
+                        marginTop: 3,
                       }}
                     >
                       {tx.date} · {getAccName(tx.sourceId)}
@@ -898,7 +941,6 @@ export default function DashboardScreen() {
   );
 
   // GATEKEEPER: A user must have at least one transaction in the current month to be evaluated.
-  // A bank balance alone provides insufficient data for a financial health score.
   const hasSufficientData = monthTxs.length > 0;
 
   const netWorth = useMemo(() => {
@@ -933,14 +975,11 @@ export default function DashboardScreen() {
 
     let score = 0;
 
-    // Factor 1: Savings Rate (Max 35 points) - Highly Weighted
-    // A 20%+ savings rate grants full points. 0% or negative grants 0.
     if (income > 0) {
       const savingsRate = Math.max(0, income - expenses) / income;
       score += Math.min(35, Math.round(savingsRate * 175)); // (0.2 * 175 = 35)
     }
 
-    // Factor 2: Budget Discipline (Max 25 points) - Highly Weighted
     const monthBudgets = app.budgets.filter(
       (b) => b.month === app.currentMonth,
     );
@@ -955,11 +994,9 @@ export default function DashboardScreen() {
         }, 0) / monthBudgets.length;
       score += Math.round(disciplineScore * 25);
     } else {
-      // Neutral if no budgets set, but capped so users are encouraged to use budgets.
       score += 10;
     }
 
-    // Factor 3: Commitment Reliability (Max 20 points)
     const monthCommits = app.commitments.filter((c2) =>
       c2.date.startsWith(app.currentMonth),
     );
@@ -967,25 +1004,21 @@ export default function DashboardScreen() {
       const paidCount = monthCommits.filter((c2) => c2.isPaid).length;
       const skippedCount = monthCommits.filter((c2) => c2.isSkipped).length;
       score += Math.round((paidCount / monthCommits.length) * 20);
-      score -= Math.round((skippedCount / monthCommits.length) * 10); // Aggressive penalty for skipped
+      score -= Math.round((skippedCount / monthCommits.length) * 10);
     } else {
-      // Neutral fallback
       score += 10;
     }
 
-    // Factor 4: Investment Consistency (Max 10 points)
     const activeInvestments = app.investments.filter((i) => i.autoSchedule);
     if (activeInvestments.length > 0) {
       score += Math.min(10, activeInvestments.length * 5);
     }
 
-    // Factor 5: Emergency Buffer Ratio (Max 10 points)
-    // Does the user's net worth cover at least 3 months of their current monthly expenses?
     if (expenses > 0) {
       const bufferRatio = netWorth / expenses;
       score += Math.min(10, Math.round(bufferRatio * 3.33)); // 3x expenses = 10 pts
     } else if (netWorth > 0) {
-      score += 10; // If they have money but 0 expenses this month, good buffer
+      score += 10;
     }
 
     return Math.max(0, Math.min(100, score));
@@ -1104,7 +1137,9 @@ export default function DashboardScreen() {
               style={{
                 color: c.textSecondary,
                 fontSize: 12,
-                fontWeight: "500",
+                fontWeight: "600",
+                textTransform: "uppercase",
+                letterSpacing: 1,
               }}
             >
               {new Date().toLocaleDateString("en-IN", {
@@ -1116,37 +1151,43 @@ export default function DashboardScreen() {
             <Text
               style={{
                 color: c.text,
-                fontSize: 22,
+                fontSize: 24,
                 fontWeight: "800",
                 marginTop: 2,
               }}
             >
               {app.profile?.name
                 ? `Hi, ${app.profile.name.split(" ")[0]}! 👋`
-                : "PaisaViti 💸"}
+                : "PaisaBabe 💸"}
             </Text>
           </View>
           <TouchableOpacity
             onPress={app.openProfileSheet}
-            style={{ borderRadius: 18, overflow: "hidden" }}
+            style={{ borderRadius: 20, overflow: "hidden" }}
           >
             {app.profile?.avatar ? (
               <Image
                 source={{ uri: app.profile.avatar }}
-                style={{ width: 36, height: 36, borderRadius: 18 }}
+                style={{ width: 40, height: 40, borderRadius: 20 }}
               />
             ) : (
               <View
                 style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
                   backgroundColor: c.surfaceElevated,
                   justifyContent: "center",
                   alignItems: "center",
+                  borderWidth: 1,
+                  borderColor: c.border,
                 }}
               >
-                <Feather name="user" size={18} color={c.textSecondary} />
+                <MaterialCommunityIcons
+                  name="account"
+                  size={24}
+                  color={c.textSecondary}
+                />
               </View>
             )}
           </TouchableOpacity>
@@ -1222,9 +1263,9 @@ export default function DashboardScreen() {
             <Text
               style={{
                 color: c.text,
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: "700",
-                marginBottom: 8,
+                marginBottom: 12,
               }}
             >
               Savings vs Spending Trend
@@ -1232,8 +1273,8 @@ export default function DashboardScreen() {
             <View
               style={{
                 flexDirection: "row",
-                gap: 6,
-                marginBottom: 8,
+                gap: 8,
+                marginBottom: 12,
                 flexWrap: "wrap",
               }}
             >
@@ -1242,18 +1283,18 @@ export default function DashboardScreen() {
                   key={f}
                   onPress={() => setChartFilter(f)}
                   style={{
-                    paddingHorizontal: 8,
-                    paddingVertical: 3,
-                    borderRadius: 10,
+                    paddingHorizontal: 12,
+                    paddingVertical: 4,
+                    borderRadius: 12,
                     backgroundColor:
                       chartFilter === f ? c.primary : c.surfaceElevated,
                   }}
                 >
                   <Text
                     style={{
-                      color: chartFilter === f ? "#fff" : c.mutedForeground,
-                      fontSize: 10,
-                      fontWeight: "600",
+                      color: chartFilter === f ? "#fff" : c.textSecondary,
+                      fontSize: 11,
+                      fontWeight: "700",
                     }}
                   >
                     {f === "both" ? "Both" : f === "spent" ? "Spent" : "Saved"}
@@ -1266,7 +1307,7 @@ export default function DashboardScreen() {
               style={{
                 flexDirection: "row",
                 gap: 12,
-                marginTop: 6,
+                marginTop: 8,
                 flexWrap: "wrap",
               }}
             >
@@ -1282,7 +1323,13 @@ export default function DashboardScreen() {
                       backgroundColor: "#f43f5e",
                     }}
                   />
-                  <Text style={{ color: c.textSecondary, fontSize: 10 }}>
+                  <Text
+                    style={{
+                      color: c.textSecondary,
+                      fontSize: 11,
+                      fontWeight: "600",
+                    }}
+                  >
                     Spent
                   </Text>
                 </View>
@@ -1299,7 +1346,13 @@ export default function DashboardScreen() {
                       backgroundColor: "#10b981",
                     }}
                   />
-                  <Text style={{ color: c.textSecondary, fontSize: 10 }}>
+                  <Text
+                    style={{
+                      color: c.textSecondary,
+                      fontSize: 11,
+                      fontWeight: "600",
+                    }}
+                  >
                     Saved
                   </Text>
                 </View>
@@ -1320,7 +1373,7 @@ export default function DashboardScreen() {
             <Text
               style={{
                 color: c.text,
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: "700",
                 marginBottom: 8,
                 alignSelf: "flex-start",
@@ -1336,20 +1389,24 @@ export default function DashboardScreen() {
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
-                    gap: 5,
-                    marginBottom: 3,
+                    gap: 6,
+                    marginBottom: 4,
                   }}
                 >
                   <View
                     style={{
-                      width: 7,
-                      height: 7,
+                      width: 8,
+                      height: 8,
                       borderRadius: 4,
                       backgroundColor: d.color,
                     }}
                   />
                   <Text
-                    style={{ color: c.textSecondary, fontSize: 9 }}
+                    style={{
+                      color: c.textSecondary,
+                      fontSize: 11,
+                      fontWeight: "500",
+                    }}
                     numberOfLines={1}
                   >
                     {d.name}
@@ -1360,8 +1417,9 @@ export default function DashboardScreen() {
                 <Text
                   style={{
                     color: c.mutedForeground,
-                    fontSize: 10,
+                    fontSize: 12,
                     textAlign: "center",
+                    marginTop: 8,
                   }}
                 >
                   No data yet
@@ -1389,7 +1447,13 @@ export default function DashboardScreen() {
                 borderColor: c.cardBorder,
               }}
             >
-              <Text style={{ color: c.mutedForeground, fontSize: 14 }}>
+              <Text
+                style={{
+                  color: c.mutedForeground,
+                  fontSize: 14,
+                  fontWeight: "600",
+                }}
+              >
                 All commitments settled! 🎉
               </Text>
             </View>
@@ -1475,8 +1539,8 @@ export default function DashboardScreen() {
                       <Text
                         style={{
                           color: c.text,
-                          fontSize: 14,
-                          fontWeight: "600",
+                          fontSize: 15,
+                          fontWeight: "700",
                         }}
                       >
                         {com.title}
@@ -1486,7 +1550,7 @@ export default function DashboardScreen() {
                         style={{
                           color: c.textSecondary,
                           fontSize: 12,
-                          marginTop: 2,
+                          marginTop: 3,
                         }}
                       >
                         Due {com.date} · {getAccName(com.sourceId)}
@@ -1497,7 +1561,8 @@ export default function DashboardScreen() {
                         style={{
                           color: c.expense,
                           fontWeight: "700",
-                          marginBottom: 6,
+                          fontSize: 15,
+                          marginBottom: 8,
                         }}
                       >
                         {fmt(com.amount)}
@@ -1523,7 +1588,7 @@ export default function DashboardScreen() {
                             style={{
                               color: c.warning,
                               fontWeight: "700",
-                              fontSize: 12,
+                              fontSize: 11,
                             }}
                           >
                             ↩ UNDO
@@ -1540,7 +1605,8 @@ export default function DashboardScreen() {
                               backgroundColor: c.surfaceElevated,
                               borderRadius: 8,
                               paddingHorizontal: 10,
-                              paddingVertical: 4,
+                              paddingVertical: 5,
+                              justifyContent: "center",
                               borderWidth: 1,
                               borderColor: c.border,
                             }}
@@ -1565,7 +1631,8 @@ export default function DashboardScreen() {
                               backgroundColor: c.income + "22",
                               borderRadius: 8,
                               paddingHorizontal: 10,
-                              paddingVertical: 4,
+                              paddingVertical: 5,
+                              justifyContent: "center",
                             }}
                             activeOpacity={0.7}
                           >
@@ -1606,7 +1673,13 @@ export default function DashboardScreen() {
                 borderColor: c.cardBorder,
               }}
             >
-              <Text style={{ color: c.mutedForeground, fontSize: 14 }}>
+              <Text
+                style={{
+                  color: c.mutedForeground,
+                  fontSize: 14,
+                  fontWeight: "600",
+                }}
+              >
                 No transactions this month
               </Text>
             </View>
@@ -1619,7 +1692,7 @@ export default function DashboardScreen() {
                     ? c.expense
                     : c.transfer;
               const txSign =
-                tx.type === "INCOME" ? "+" : tx.type === "EXPENSE" ? "−" : "→";
+                tx.type === "INCOME" ? "+" : tx.type === "EXPENSE" ? "−" : "";
               return (
                 <TouchableOpacity
                   key={tx.id}
@@ -1638,28 +1711,30 @@ export default function DashboardScreen() {
                 >
                   <View
                     style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 18,
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
                       backgroundColor: txColor + "22",
                       alignItems: "center",
                       justifyContent: "center",
                       marginRight: 12,
                     }}
                   >
-                    <Text
-                      style={{
-                        color: txColor,
-                        fontWeight: "700",
-                        fontSize: 13,
-                      }}
-                    >
-                      {txSign}
-                    </Text>
+                    <MaterialCommunityIcons
+                      name={
+                        tx.type === "INCOME"
+                          ? "arrow-bottom-left"
+                          : tx.type === "EXPENSE"
+                            ? "arrow-top-right"
+                            : "swap-horizontal"
+                      }
+                      size={20}
+                      color={txColor}
+                    />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text
-                      style={{ color: c.text, fontSize: 14, fontWeight: "600" }}
+                      style={{ color: c.text, fontSize: 15, fontWeight: "700" }}
                     >
                       {tx.note || tx.category}
                     </Text>
@@ -1667,14 +1742,14 @@ export default function DashboardScreen() {
                       style={{
                         color: c.textSecondary,
                         fontSize: 12,
-                        marginTop: 1,
+                        marginTop: 3,
                       }}
                     >
                       {tx.date} · {tx.category}
                     </Text>
                   </View>
                   <Text
-                    style={{ color: txColor, fontWeight: "700", fontSize: 14 }}
+                    style={{ color: txColor, fontWeight: "800", fontSize: 15 }}
                   >
                     {txSign}
                     {fmt(tx.amount)}
@@ -1691,22 +1766,22 @@ export default function DashboardScreen() {
         style={{
           position: "absolute",
           bottom: 110,
-          right: 16,
-          width: 56,
-          height: 56,
-          borderRadius: 28,
+          right: 20,
+          width: 60,
+          height: 60,
+          borderRadius: 30,
           backgroundColor: c.primary,
           alignItems: "center",
           justifyContent: "center",
           shadowColor: "#000",
           shadowOpacity: 0.3,
-          shadowRadius: 4,
-          shadowOffset: { width: 0, height: 2 },
-          elevation: 5,
+          shadowRadius: 6,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 8,
           zIndex: 10,
         }}
       >
-        <Feather name="plus" size={24} color="#fff" />
+        <MaterialCommunityIcons name="plus" size={28} color="#fff" />
       </TouchableOpacity>
     </SafeAreaView>
   );

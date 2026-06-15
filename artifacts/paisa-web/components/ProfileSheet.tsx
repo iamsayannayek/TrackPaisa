@@ -14,7 +14,7 @@ import {
   Dimensions,
   Share,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons"; // <-- PREMIUM ICONS
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as DocumentPicker from "expo-document-picker";
@@ -235,7 +235,7 @@ export default function ProfileSheet() {
       const today = new Date().toISOString().split("T")[0];
       await Share.share({
         message: json,
-        title: `PaisaWeb_Backup_${today}.json`,
+        title: `PaisaBabe_Backup_${today}.json`, // <-- UPDATED APP NAME
       });
     } catch {
       Alert.alert("Export failed", "Could not share the backup data.");
@@ -282,7 +282,7 @@ export default function ProfileSheet() {
   }: {
     title: string;
     value: string | number;
-    icon: keyof typeof Feather.glyphMap;
+    icon: keyof typeof MaterialCommunityIcons.glyphMap; // <-- PREMIUM TYPING
     color: string;
   }) => (
     <View
@@ -299,9 +299,9 @@ export default function ProfileSheet() {
       <View
         style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}
       >
-        <Feather
+        <MaterialCommunityIcons
           name={icon}
-          size={14}
+          size={16}
           color={color}
           style={{ marginRight: 6 }}
         />
@@ -379,7 +379,11 @@ export default function ProfileSheet() {
               onPress={app.closeProfileSheet}
               style={{ padding: 4 }}
             >
-              <Feather name="x" size={24} color={c.textSecondary} />
+              <MaterialCommunityIcons
+                name="close"
+                size={24}
+                color={c.textSecondary}
+              />
             </TouchableOpacity>
           </View>
 
@@ -407,9 +411,15 @@ export default function ProfileSheet() {
                       backgroundColor: c.surfaceElevated,
                       justifyContent: "center",
                       alignItems: "center",
+                      borderWidth: 1,
+                      borderColor: c.border,
                     }}
                   >
-                    <Feather name="user" size={40} color={c.mutedForeground} />
+                    <MaterialCommunityIcons
+                      name="account"
+                      size={40}
+                      color={c.mutedForeground}
+                    />
                   </View>
                 )}
                 <View
@@ -419,12 +429,16 @@ export default function ProfileSheet() {
                     right: 0,
                     backgroundColor: c.primary,
                     padding: 6,
-                    borderRadius: 15,
+                    borderRadius: 16,
                     borderWidth: 2,
                     borderColor: c.background,
                   }}
                 >
-                  <Feather name="camera" size={14} color="#fff" />
+                  <MaterialCommunityIcons
+                    name="camera"
+                    size={16}
+                    color="#fff"
+                  />
                 </View>
               </TouchableOpacity>
 
@@ -498,7 +512,11 @@ export default function ProfileSheet() {
                       gap: 6,
                     }}
                   >
-                    <Feather name="edit-2" size={14} color={c.primary} />
+                    <MaterialCommunityIcons
+                      name="pencil"
+                      size={16}
+                      color={c.primary}
+                    />
                     <Text style={{ color: c.primary, fontWeight: "600" }}>
                       Edit Profile
                     </Text>
@@ -537,19 +555,19 @@ export default function ProfileSheet() {
               <StatItem
                 title="Health Score"
                 value={hDisplay}
-                icon="activity"
+                icon="heart-pulse"
                 color={hColor}
               />
               <StatItem
                 title="Income"
                 value={fmt(income)}
-                icon="arrow-down-left"
+                icon="arrow-bottom-left"
                 color={c.income}
               />
               <StatItem
                 title="Budget Month"
                 value={app.currentMonth}
-                icon="calendar"
+                icon="calendar-month"
                 color={c.transfer}
               />
             </View>
@@ -644,7 +662,11 @@ export default function ProfileSheet() {
                     gap: 12,
                   }}
                 >
-                  <Feather name="moon" size={20} color={c.text} />
+                  <MaterialCommunityIcons
+                    name="weather-night"
+                    size={20}
+                    color={c.text}
+                  />
                   <Text
                     style={{ fontSize: 16, color: c.text, fontWeight: "600" }}
                   >
@@ -690,9 +712,9 @@ export default function ProfileSheet() {
                   borderColor: c.border,
                 }}
               >
-                <Feather
-                  name="upload-cloud"
-                  size={20}
+                <MaterialCommunityIcons
+                  name="cloud-upload-outline"
+                  size={24}
                   color={c.text}
                   style={{ marginRight: 12 }}
                 />
@@ -710,9 +732,9 @@ export default function ProfileSheet() {
                   padding: 16,
                 }}
               >
-                <Feather
-                  name="download-cloud"
-                  size={20}
+                <MaterialCommunityIcons
+                  name="cloud-download-outline"
+                  size={24}
                   color={c.text}
                   style={{ marginRight: 12 }}
                 />
@@ -737,9 +759,9 @@ export default function ProfileSheet() {
                 borderColor: c.destructive + "30",
               }}
             >
-              <Feather
-                name="trash-2"
-                size={18}
+              <MaterialCommunityIcons
+                name="trash-can-outline"
+                size={20}
                 color={c.destructive}
                 style={{ marginRight: 8 }}
               />
@@ -762,7 +784,7 @@ export default function ProfileSheet() {
                 marginTop: 32,
               }}
             >
-              PaisaWeb App Version 1.0.0
+              PaisaBabe App Version 1.0.0
             </Text>
           </ScrollView>
         </Animated.View>

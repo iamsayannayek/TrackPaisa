@@ -1,439 +1,73 @@
 import React, { useMemo } from "react";
 import {
-  Platform,
-  ScrollView,
-  StatusBar,
-  Text,
-  TouchableOpacity,
   View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StatusBar,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
-import { useApp, Investment, Goal } from "@/context/AppContext";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useApp } from "@/context/AppContext";
 import { useAppColors } from "@/hooks/useAppColors";
 
-const fmt = (n: number) => `₹${Math.abs(n).toLocaleString("en-IN")}`;
-const fmtL = (n: number) => {
-  if (Math.abs(n) >= 100000) return `₹${(n / 100000).toFixed(2)}L`;
-  if (Math.abs(n) >= 1000) return `₹${(n / 1000).toFixed(1)}k`;
-  return fmt(n);
+const fmt = (n: number) => `₹${Math.abs(n || 0).toLocaleString("en-IN")}`;
+const fmtCompact = (n: number) => {
+  const abs = Math.abs(n || 0);
+  if (abs >= 100000) return `₹${(n / 100000).toFixed(2)}L`;
+  if (abs >= 1000) return `₹${(n / 1000).toFixed(1)}k`;
+  return `₹${n}`;
 };
-
-function GoalCard({ goal, onPress }: { goal: Goal; onPress: () => void }) {
-  const app = useApp();
-  const c = useAppColors();
-  const pct =
-    goal.target > 0 ? Math.min((goal.current / goal.target) * 100, 100) : 0;
-  const linked = app.accounts.find((a) => a.id === goal.accountId);
-
-  const deadline = new Date(goal.deadline);
-  const today = new Date();
-  const daysLeft = Math.ceil(
-    (deadline.getTime() - today.getTime()) / (1000 * 86400),
-  );
-  const monthsLeft = Math.ceil(daysLeft / 30);
-  const monthlyNeeded =
-    monthsLeft > 0 ? (goal.target - goal.current) / monthsLeft : 0;
-
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.8}
-      style={{
-        backgroundColor: c.card,
-        borderRadius: c.radius,
-        padding: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: c.cardBorder,
-      }}
-    >
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          marginBottom: 12,
-        }}
-      >
-        <View style={{ flex: 1, marginRight: 12 }}>
-          <Text
-            style={{
-              color: c.text,
-              fontSize: 15,
-              fontWeight: "700",
-              marginBottom: 4,
-            }}
-          >
-            {goal.name}
-          </Text>
-          <Text style={{ color: c.textSecondary, fontSize: 12 }}>
-            Linked: {linked?.name ?? "—"}
-          </Text>
-          <Text style={{ color: c.textSecondary, fontSize: 12 }}>
-            Deadline: {goal.deadline}
-          </Text>
-        </View>
-        <View style={{ alignItems: "flex-end" }}>
-          <Text style={{ color: c.primary, fontSize: 18, fontWeight: "800" }}>
-            {fmtL(goal.current)}
-          </Text>
-          <Text style={{ color: c.textSecondary, fontSize: 12 }}>
-            of {fmtL(goal.target)}
-          </Text>
-        </View>
-      </View>
-
-      <View
-        style={{
-          height: 8,
-          backgroundColor: c.border,
-          borderRadius: 4,
-          overflow: "hidden",
-          marginBottom: 8,
-        }}
-      >
-        <View
-          style={{
-            height: 8,
-            borderRadius: 4,
-            width: `${pct}%`,
-            backgroundColor: pct >= 100 ? c.income : c.primary,
-          }}
-        />
-      </View>
-
-      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-        <Text style={{ color: c.textSecondary, fontSize: 11 }}>
-          {pct.toFixed(1)}% complete
-        </Text>
-        <Text
-          style={{
-            color: pct >= 100 ? c.income : c.textSecondary,
-            fontSize: 11,
-          }}
-        >
-          {pct >= 100
-            ? "🎉 Goal Reached!"
-            : `${daysLeft > 0 ? daysLeft + " days left" : "Past deadline"}  ·  Need ${fmtL(monthlyNeeded)}/mo`}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-function InvestmentCard({
-  inv,
-  onPress,
-}: {
-  inv: Investment;
-  onPress: () => void;
-}) {
-  const c = useAppColors();
-  const returns = inv.currentValue - inv.totalInvested;
-  const returnsPct =
-    inv.totalInvested > 0 ? (returns / inv.totalInvested) * 100 : 0;
-
-  const { nextDateStr, remainingText } = useMemo(() => {
-    const nextDateStr = inv.nextPaymentDate
-      ? new Date(inv.nextPaymentDate).toLocaleDateString("en-IN", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        })
-      : "Not Set";
-
-    let remainingText = null;
-
-    if ((inv.type === "LIC" || inv.type === "RD") && inv.tenureYears) {
-      let totalPayments = 0;
-      if (inv.frequency === "Monthly") totalPayments = inv.tenureYears * 12;
-      else if (inv.frequency === "Quarterly")
-        totalPayments = inv.tenureYears * 4;
-      else if (inv.frequency === "Yearly") totalPayments = inv.tenureYears;
-
-      const paid = inv.paidCount || 0;
-      const left = Math.max(0, totalPayments - paid);
-
-      const term =
-        inv.frequency === "Yearly"
-          ? "Yrs"
-          : inv.frequency === "Quarterly"
-            ? "Qtrs"
-            : "Mths";
-      remainingText = `${left} ${term} left`;
-    }
-
-    return { nextDateStr, remainingText };
-  }, [
-    inv.nextPaymentDate,
-    inv.type,
-    inv.tenureYears,
-    inv.frequency,
-    inv.paidCount,
-  ]);
-
-  const typeColors: Record<string, string> = {
-    MF: "#6366f1",
-    PPF: "#10b981",
-    LIC: "#f59e0b",
-    FD: "#3b82f6",
-    RD: "#8b5cf6",
-    STOCK: "#f43f5e",
-    Others: "#64748b",
-  };
-  const invColor = typeColors[inv.type] ?? c.primary;
-
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.8}
-      style={{
-        backgroundColor: c.card,
-        borderRadius: c.radius,
-        padding: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: c.cardBorder,
-        borderLeftWidth: 4,
-        borderLeftColor: invColor,
-      }}
-    >
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          marginBottom: 10,
-        }}
-      >
-        <View style={{ flex: 1, marginRight: 12 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 8,
-              marginBottom: 6,
-              flexWrap: "wrap",
-            }}
-          >
-            <View
-              style={{
-                backgroundColor: invColor + "22",
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-                borderRadius: 8,
-              }}
-            >
-              <Text
-                style={{ color: invColor, fontSize: 10, fontWeight: "700" }}
-              >
-                {inv.type}
-              </Text>
-            </View>
-            {inv.treatAsExpense && (
-              <View
-                style={{
-                  backgroundColor: c.expense + "22",
-                  paddingHorizontal: 6,
-                  paddingVertical: 2,
-                  borderRadius: 6,
-                }}
-              >
-                <Text
-                  style={{ color: c.expense, fontSize: 9, fontWeight: "700" }}
-                >
-                  EXPENSE
-                </Text>
-              </View>
-            )}
-
-            {(inv.skippedCount ?? 0) > 0 && (
-              <View
-                style={{
-                  backgroundColor: "#f59e0b22",
-                  paddingHorizontal: 6,
-                  paddingVertical: 2,
-                  borderRadius: 6,
-                  borderWidth: 1,
-                  borderColor: "#f59e0b44",
-                }}
-              >
-                <Text
-                  style={{ color: "#f59e0b", fontSize: 9, fontWeight: "700" }}
-                >
-                  ⚠️ {inv.skippedCount} SKIPPED
-                </Text>
-              </View>
-            )}
-          </View>
-
-          <Text
-            style={{
-              color: c.text,
-              fontSize: 15,
-              fontWeight: "700",
-              marginBottom: 4,
-            }}
-          >
-            {inv.name}
-          </Text>
-
-          <View style={{ marginTop: 2 }}>
-            <Text style={{ color: c.textSecondary, fontSize: 12 }}>
-              {fmt(inv.monthlyContribution)}/amt • {inv.frequency}
-            </Text>
-
-            {inv.autoSchedule && (
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 6,
-                  marginTop: 6,
-                }}
-              >
-                <Feather name="calendar" size={12} color={c.primary} />
-                <Text
-                  style={{ color: c.primary, fontSize: 11, fontWeight: "700" }}
-                >
-                  Due: {nextDateStr}
-                </Text>
-
-                {remainingText && (
-                  <>
-                    <Text style={{ color: c.border, fontSize: 11 }}>|</Text>
-                    <Text
-                      style={{
-                        color: c.warning ?? "#f59e0b",
-                        fontSize: 11,
-                        fontWeight: "700",
-                      }}
-                    >
-                      {remainingText}
-                    </Text>
-                  </>
-                )}
-              </View>
-            )}
-          </View>
-        </View>
-
-        <View style={{ alignItems: "flex-end" }}>
-          <Text style={{ color: c.text, fontSize: 17, fontWeight: "800" }}>
-            {fmtL(inv.currentValue)}
-          </Text>
-          <Text style={{ color: c.textSecondary, fontSize: 11 }}>
-            Current Value
-          </Text>
-        </View>
-      </View>
-
-      <View
-        style={{
-          flexDirection: "row",
-          gap: 16,
-          paddingTop: 10,
-          borderTopWidth: 1,
-          borderTopColor: c.border,
-        }}
-      >
-        <View>
-          <Text
-            style={{
-              color: c.textSecondary,
-              fontSize: 10,
-              fontWeight: "600",
-              textTransform: "uppercase",
-              letterSpacing: 0.5,
-            }}
-          >
-            Invested
-          </Text>
-          <Text
-            style={{
-              color: c.text,
-              fontSize: 13,
-              fontWeight: "700",
-              marginTop: 2,
-            }}
-          >
-            {fmtL(inv.totalInvested)}
-          </Text>
-        </View>
-        {inv.showReturns !== false && (
-          <View>
-            <Text
-              style={{
-                color: c.textSecondary,
-                fontSize: 10,
-                fontWeight: "600",
-                textTransform: "uppercase",
-                letterSpacing: 0.5,
-              }}
-            >
-              Returns
-            </Text>
-            <Text
-              style={{
-                color: returns >= 0 ? c.income : c.expense,
-                fontSize: 13,
-                fontWeight: "700",
-                marginTop: 2,
-              }}
-            >
-              {returns >= 0 ? "+" : "−"}
-              {fmtL(Math.abs(returns))} ({returnsPct >= 0 ? "+" : ""}
-              {returnsPct.toFixed(1)}%)
-            </Text>
-          </View>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-}
 
 export default function WealthScreen() {
   const app = useApp();
   const c = useAppColors();
 
   const totalInvested = useMemo(
-    () => app.investments.reduce((s, i) => s + i.totalInvested, 0),
+    () => app.investments.reduce((s, i) => s + (i.totalInvested || 0), 0),
     [app.investments],
   );
-  const totalCurrentValue = useMemo(
-    () => app.investments.reduce((s, i) => s + i.currentValue, 0),
+  const currentValue = useMemo(
+    () => app.investments.reduce((s, i) => s + (i.currentValue || 0), 0),
     [app.investments],
   );
-  const totalReturns = totalCurrentValue - totalInvested;
-  const overallReturnsPct =
+  const totalReturns = currentValue - totalInvested;
+  const returnPct =
     totalInvested > 0 ? (totalReturns / totalInvested) * 100 : 0;
-  const monthlyCommit = useMemo(
-    () =>
-      app.investments.reduce(
-        (s, i) => s + (i.frequency === "Monthly" ? i.monthlyContribution : 0),
-        0,
-      ),
-    [app.investments],
-  );
 
-  const goalProgress = useMemo(() => {
-    if (app.goals.length === 0) return 0;
-    const avg =
-      app.goals.reduce(
-        (s, g) => s + (g.target > 0 ? Math.min(g.current / g.target, 1) : 0),
-        0,
-      ) / app.goals.length;
-    return avg * 100;
-  }, [app.goals]);
+  const groupedInvestments = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    app.investments.forEach((inv) => {
+      if (!groups[inv.type]) groups[inv.type] = [];
+      groups[inv.type].push(inv);
+    });
+    return Object.entries(groups).map(([type, data]) => ({ type, data }));
+  }, [app.investments]);
+
+  const getAccName = (id?: string) =>
+    app.accounts.find((a) => a.id === id)?.name ?? "Account";
+
+  const getInvIcon = (
+    inv: any,
+  ): keyof typeof MaterialCommunityIcons.glyphMap => {
+    if (inv.icon)
+      return inv.icon as keyof typeof MaterialCommunityIcons.glyphMap;
+    const map: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
+      MF: "chart-pie",
+      PPF: "bank",
+      LIC: "shield-check",
+      FD: "lock",
+      RD: "cash-clock",
+      STOCK: "chart-line",
+    };
+    return map[inv.type] || "finance";
+  };
 
   return (
     <SafeAreaView
       edges={["top", "bottom"]}
-      style={{
-        flex: 1,
-        backgroundColor: c.background,
-      }}
+      style={{ flex: 1, backgroundColor: c.background }}
     >
       <StatusBar
         barStyle="light-content"
@@ -441,287 +75,795 @@ export default function WealthScreen() {
         translucent={false}
       />
 
-      <View style={{ padding: 16, paddingBottom: 8 }}>
-        <Text
-          style={{
-            color: c.text,
-            fontSize: 22,
-            fontWeight: "800",
-            marginBottom: 4,
-          }}
-        >
-          Wealth Tracker
-        </Text>
-        <Text style={{ color: c.textSecondary, fontSize: 13 }}>
-          Investments, Goals & Portfolio
-        </Text>
-      </View>
-
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 110 }}>
-        <View
-          style={{
-            backgroundColor: c.primary + "1A",
-            borderRadius: c.radius + 2,
-            padding: 16,
-            marginBottom: 20,
-            borderWidth: 1,
-            borderColor: c.primary + "44",
-          }}
-        >
+      <View
+        style={{
+          padding: 16,
+          paddingBottom: 8,
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "flex-end",
+        }}
+      >
+        <View>
           <Text
             style={{
-              color: c.primary,
-              fontSize: 11,
-              fontWeight: "700",
-              textTransform: "uppercase",
-              letterSpacing: 0.8,
-              marginBottom: 10,
+              color: c.text,
+              fontSize: 26,
+              fontWeight: "900",
+              fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
             }}
           >
-            Portfolio Overview
+            Wealth Tracker
           </Text>
+          <Text style={{ color: c.textSecondary, fontSize: 13, marginTop: 4 }}>
+            Investments, Goals & Portfolio
+          </Text>
+        </View>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 110 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View
+          style={{
+            backgroundColor: c.primary + "11",
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 24,
+            borderWidth: 1,
+            borderColor: c.primary + "33",
+          }}
+        >
           <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              marginBottom: 8,
-            }}
+            style={{ flexDirection: "row", justifyContent: "space-between" }}
           >
             <View>
               <Text
                 style={{
                   color: c.textSecondary,
-                  fontSize: 11,
-                  textTransform: "uppercase",
-                  fontWeight: "600",
+                  fontSize: 12,
+                  fontWeight: "700",
                 }}
               >
-                Current Value
+                Invested
               </Text>
-              <Text style={{ color: c.text, fontSize: 22, fontWeight: "800" }}>
-                {fmtL(totalCurrentValue)}
+              <Text
+                style={{
+                  color: c.text,
+                  fontSize: 20,
+                  fontWeight: "800",
+                  marginTop: 4,
+                }}
+              >
+                {fmt(totalInvested)}
               </Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
               <Text
                 style={{
                   color: c.textSecondary,
-                  fontSize: 11,
-                  textTransform: "uppercase",
-                  fontWeight: "600",
+                  fontSize: 12,
+                  fontWeight: "700",
                 }}
               >
-                Total Returns
+                Returns
               </Text>
               <Text
                 style={{
                   color: totalReturns >= 0 ? c.income : c.expense,
                   fontSize: 18,
                   fontWeight: "800",
+                  marginTop: 4,
                 }}
               >
-                {totalReturns >= 0 ? "+" : "−"}
-                {fmtL(Math.abs(totalReturns))}
-              </Text>
-              <Text
-                style={{
-                  color: totalReturns >= 0 ? c.income : c.expense,
-                  fontSize: 13,
-                  fontWeight: "700",
-                }}
-              >
-                ({overallReturnsPct >= 0 ? "+" : ""}
-                {overallReturnsPct.toFixed(2)}%)
-              </Text>
-            </View>
-          </View>
-          <View
-            style={{
-              flexDirection: "row",
-              gap: 16,
-              paddingTop: 10,
-              borderTopWidth: 1,
-              borderTopColor: c.border,
-            }}
-          >
-            <View>
-              <Text
-                style={{
-                  color: c.textSecondary,
-                  fontSize: 10,
-                  textTransform: "uppercase",
-                  fontWeight: "600",
-                }}
-              >
-                Invested
-              </Text>
-              <Text style={{ color: c.text, fontSize: 13, fontWeight: "700" }}>
-                {fmtL(totalInvested)}
-              </Text>
-            </View>
-            <View>
-              <Text
-                style={{
-                  color: c.textSecondary,
-                  fontSize: 10,
-                  textTransform: "uppercase",
-                  fontWeight: "600",
-                }}
-              >
-                Monthly SIP
-              </Text>
-              <Text style={{ color: c.text, fontSize: 13, fontWeight: "700" }}>
-                {fmt(monthlyCommit)}
-              </Text>
-            </View>
-            <View>
-              <Text
-                style={{
-                  color: c.textSecondary,
-                  fontSize: 10,
-                  textTransform: "uppercase",
-                  fontWeight: "600",
-                }}
-              >
-                Goals Avg
-              </Text>
-              <Text style={{ color: c.text, fontSize: 13, fontWeight: "700" }}>
-                {goalProgress.toFixed(0)}%
+                {totalReturns >= 0 ? "+" : "-"}
+                {fmt(Math.abs(totalReturns))} ({returnPct >= 0 ? "+" : ""}
+                {returnPct.toFixed(1)}%)
               </Text>
             </View>
           </View>
         </View>
 
-        <View style={{ marginBottom: 8 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 12,
-            }}
-          >
-            <Text style={{ color: c.text, fontSize: 17, fontWeight: "700" }}>
-              🎯 Financial Goals
-            </Text>
-            <TouchableOpacity
-              onPress={() => app.openGoalModal()}
-              style={{
-                backgroundColor: c.primary,
-                borderRadius: 8,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                flexDirection: "row",
-                gap: 4,
-                alignItems: "center",
-              }}
-            >
-              <Feather name="plus" size={14} color="#fff" />
-              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>
-                Add
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {app.goals.length === 0 ? (
+        {/* FINANCIAL GOALS SECTION */}
+        {app.goals.length > 0 ? (
+          <View style={{ marginBottom: 24 }}>
             <View
               style={{
-                backgroundColor: c.card,
-                borderRadius: c.radius,
-                padding: 32,
+                flexDirection: "row",
+                justifyContent: "space-between",
                 alignItems: "center",
-                borderWidth: 1,
-                borderColor: c.cardBorder,
                 marginBottom: 12,
               }}
             >
-              <Feather name="target" size={36} color={c.mutedForeground} />
-              <Text
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+              >
+                <MaterialCommunityIcons
+                  name="bullseye-arrow"
+                  size={20}
+                  color={c.expense}
+                />
+                <Text
+                  style={{
+                    color: c.text,
+                    fontSize: 16,
+                    fontWeight: "800",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  Financial Goals
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => app.openGoalModal()}
                 style={{
-                  color: c.mutedForeground,
-                  fontSize: 14,
-                  marginTop: 12,
-                  textAlign: "center",
+                  backgroundColor: c.primary,
+                  borderRadius: 8,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
                 }}
               >
-                No goals yet{"\n"}Tap + Add to set your first goal
-              </Text>
+                <MaterialCommunityIcons name="plus" size={16} color="#fff" />
+                <Text
+                  style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}
+                >
+                  Add
+                </Text>
+              </TouchableOpacity>
             </View>
-          ) : (
-            app.goals.map((g) => (
-              <GoalCard
-                key={g.id}
-                goal={g}
-                onPress={() => app.openGoalModal(g)}
-              />
-            ))
-          )}
-        </View>
 
-        <View>
-          <View
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 12 }}
+            >
+              {app.goals.map((g) => {
+                const pct = Math.min((g.current / g.target) * 100, 100);
+                const daysLeft = Math.max(
+                  0,
+                  Math.ceil(
+                    (new Date(g.deadline).getTime() - new Date().getTime()) /
+                      (1000 * 3600 * 24),
+                  ),
+                );
+                const monthsLeft = Math.max(1, Math.ceil(daysLeft / 30));
+                const needPerMo = Math.max(
+                  0,
+                  (g.target - g.current) / monthsLeft,
+                );
+
+                const gData = g as any;
+                const bgColor = gData.color || c.card;
+                const isCustom = bgColor !== c.card;
+                const tColor = isCustom
+                  ? gData.textColorLight
+                    ? "#ffffff"
+                    : "#0f172a"
+                  : c.text;
+                const tColorSec = isCustom
+                  ? gData.textColorLight
+                    ? "rgba(255,255,255,0.8)"
+                    : "rgba(15,23,42,0.7)"
+                  : c.textSecondary;
+                const iconBg =
+                  gData.iconBgColor ||
+                  (isCustom
+                    ? gData.textColorLight
+                      ? "rgba(255,255,255,0.2)"
+                      : "rgba(0,0,0,0.1)"
+                    : c.primary + "1A");
+                const iconCol =
+                  gData.iconColor || (isCustom ? tColor : c.primary);
+                const iconName = gData.icon || "bullseye-arrow";
+
+                return (
+                  <TouchableOpacity
+                    key={g.id}
+                    onPress={() => app.openGoalModal(g)}
+                    activeOpacity={0.8}
+                    style={{
+                      width: 280,
+                      backgroundColor: bgColor,
+                      borderRadius: 16,
+                      padding: 16,
+                      borderWidth: 1,
+                      borderColor: isCustom ? bgColor : c.cardBorder,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        marginBottom: 16,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 12,
+                          backgroundColor: iconBg,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <MaterialCommunityIcons
+                          name={iconName}
+                          size={24}
+                          color={iconCol}
+                        />
+                      </View>
+                      <Text
+                        style={{
+                          color: tColor,
+                          fontSize: 16,
+                          fontWeight: "800",
+                        }}
+                      >
+                        {pct.toFixed(0)}%
+                      </Text>
+                    </View>
+
+                    <Text
+                      style={{
+                        color: tColor,
+                        fontSize: 18,
+                        fontWeight: "800",
+                        marginBottom: 4,
+                      }}
+                      numberOfLines={1}
+                    >
+                      {g.name}
+                    </Text>
+
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: 4,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: tColorSec,
+                          fontSize: 12,
+                          fontWeight: "500",
+                        }}
+                      >
+                        Linked: {getAccName(g.accountId)}
+                      </Text>
+                      <Text
+                        style={{
+                          color: tColorSec,
+                          fontSize: 12,
+                          fontWeight: "500",
+                        }}
+                      >
+                        of {fmtCompact(g.target)}
+                      </Text>
+                    </View>
+
+                    <Text
+                      style={{
+                        color: tColorSec,
+                        fontSize: 12,
+                        fontWeight: "500",
+                        marginBottom: 12,
+                      }}
+                    >
+                      Deadline: {g.deadline}
+                    </Text>
+
+                    <View
+                      style={{
+                        height: 6,
+                        backgroundColor: isCustom
+                          ? gData.textColorLight
+                            ? "rgba(255,255,255,0.3)"
+                            : "rgba(0,0,0,0.1)"
+                          : c.border,
+                        borderRadius: 3,
+                        marginBottom: 10,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: `${pct}%`,
+                          height: 6,
+                          backgroundColor:
+                            pct === 100
+                              ? isCustom
+                                ? tColor
+                                : c.income
+                              : isCustom
+                                ? tColor
+                                : c.primary,
+                          borderRadius: 3,
+                        }}
+                      />
+                    </View>
+
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: tColorSec,
+                          fontSize: 11,
+                          fontWeight: "600",
+                        }}
+                      >
+                        {daysLeft} days left
+                      </Text>
+                      <Text
+                        style={{
+                          color: tColorSec,
+                          fontSize: 11,
+                          fontWeight: "600",
+                        }}
+                      >
+                        Need {fmtCompact(needPerMo)}/mo
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        ) : null}
+
+        {/* INVESTMENTS SECTION */}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 16,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <MaterialCommunityIcons
+              name="chart-line-variant"
+              size={20}
+              color={c.expense}
+            />
+            <Text
+              style={{
+                color: c.text,
+                fontSize: 16,
+                fontWeight: "800",
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+              }}
+            >
+              Investments
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => app.openInvestmentModal()}
             style={{
+              backgroundColor: c.primary,
+              borderRadius: 8,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
               flexDirection: "row",
-              justifyContent: "space-between",
               alignItems: "center",
-              marginBottom: 12,
+              gap: 4,
             }}
           >
-            <Text style={{ color: c.text, fontSize: 17, fontWeight: "700" }}>
-              📈 Investments
+            <MaterialCommunityIcons name="plus" size={16} color="#fff" />
+            <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>
+              Add
             </Text>
-            <TouchableOpacity
-              onPress={() => app.openInvestmentModal()}
-              style={{
-                backgroundColor: c.primary,
-                borderRadius: 8,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                flexDirection: "row",
-                gap: 4,
-                alignItems: "center",
-              }}
-            >
-              <Feather name="plus" size={14} color="#fff" />
-              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>
-                Add
-              </Text>
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
+        </View>
 
-          {app.investments.length === 0 ? (
-            <View
-              style={{
-                backgroundColor: c.card,
-                borderRadius: c.radius,
-                padding: 32,
-                alignItems: "center",
-                borderWidth: 1,
-                borderColor: c.cardBorder,
-              }}
+        {groupedInvestments.length === 0 ? (
+          <View
+            style={{
+              alignItems: "center",
+              padding: 40,
+              backgroundColor: c.card,
+              borderRadius: c.radius,
+              borderWidth: 1,
+              borderColor: c.cardBorder,
+            }}
+          >
+            <MaterialCommunityIcons
+              name="seed-outline"
+              size={48}
+              color={c.mutedForeground}
+            />
+            <Text
+              style={{ color: c.mutedForeground, marginTop: 12, fontSize: 15 }}
             >
-              <Feather name="trending-up" size={36} color={c.mutedForeground} />
+              No investments tracked yet
+            </Text>
+          </View>
+        ) : (
+          groupedInvestments.map((group) => (
+            <View key={group.type} style={{ marginBottom: 20 }}>
               <Text
                 style={{
-                  color: c.mutedForeground,
-                  fontSize: 14,
-                  marginTop: 12,
-                  textAlign: "center",
+                  color: c.textSecondary,
+                  fontSize: 13,
+                  fontWeight: "800",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.8,
+                  marginBottom: 12,
+                  paddingLeft: 4,
                 }}
               >
-                No investments tracked yet{"\n"}Tap + Add to get started
+                {group.type}
               </Text>
+
+              {group.data.map((inv) => {
+                const isRet = inv.currentValue - inv.totalInvested;
+                const isRetPct =
+                  inv.totalInvested > 0 ? (isRet / inv.totalInvested) * 100 : 0;
+
+                const freqMultiplier =
+                  inv.frequency === "Monthly"
+                    ? 12
+                    : inv.frequency === "Quarterly"
+                      ? 4
+                      : inv.frequency === "Half-Yearly"
+                        ? 2
+                        : 1;
+                const periodLabel =
+                  inv.frequency === "Monthly"
+                    ? "Months"
+                    : inv.frequency === "Quarterly"
+                      ? "Qtrs"
+                      : inv.frequency === "Half-Yearly"
+                        ? "Half-Yrs"
+                        : "Yrs";
+                const totalPeriods = (inv.tenureYears || 0) * freqMultiplier;
+                const remainingPeriods = Math.max(
+                  totalPeriods - (inv.paidCount || 0),
+                  0,
+                );
+
+                const invColor = (inv as any).color || c.primary;
+                const typeBg = invColor + "1A";
+                const typeCol = invColor;
+                const expBg = c.expense + "1A";
+                const expCol = c.expense;
+                const skipBg = c.warning + "1A";
+                const skipCol = c.warning;
+
+                return (
+                  <TouchableOpacity
+                    key={inv.id}
+                    onPress={() => app.openInvestmentModal(inv)}
+                    activeOpacity={0.7}
+                    style={{
+                      backgroundColor: c.card,
+                      borderRadius: 16,
+                      padding: 16,
+                      marginBottom: 12,
+                      borderWidth: 1,
+                      borderColor: c.cardBorder,
+                      flexDirection: "column",
+                    }}
+                  >
+                    {/* ROW 1: TAGS & CURRENT VALUE */}
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        marginBottom: 16,
+                      }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          gap: 6,
+                          flexWrap: "wrap",
+                          flex: 1,
+                          paddingRight: 8,
+                        }}
+                      >
+                        <View
+                          style={{
+                            backgroundColor: typeBg,
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: 4,
+                            marginBottom: 4,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: typeCol,
+                              fontSize: 10,
+                              fontWeight: "800",
+                            }}
+                          >
+                            {inv.type}
+                          </Text>
+                        </View>
+                        {inv.treatAsExpense ? (
+                          <View
+                            style={{
+                              backgroundColor: expBg,
+                              paddingHorizontal: 6,
+                              paddingVertical: 2,
+                              borderRadius: 4,
+                              marginBottom: 4,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: expCol,
+                                fontSize: 10,
+                                fontWeight: "800",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              EXPENSE
+                            </Text>
+                          </View>
+                        ) : null}
+                        {inv.skippedCount > 0 ? (
+                          <View
+                            style={{
+                              backgroundColor: skipBg,
+                              paddingHorizontal: 6,
+                              paddingVertical: 2,
+                              borderRadius: 4,
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 2,
+                              marginBottom: 4,
+                            }}
+                          >
+                            <MaterialCommunityIcons
+                              name="alert"
+                              size={10}
+                              color={skipCol}
+                            />
+                            <Text
+                              style={{
+                                color: skipCol,
+                                fontSize: 10,
+                                fontWeight: "800",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              {inv.skippedCount} SKIPPED
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
+
+                      <View style={{ alignItems: "flex-end", paddingLeft: 8 }}>
+                        <Text
+                          style={{
+                            color: c.text,
+                            fontSize: 18,
+                            fontWeight: "800",
+                          }}
+                        >
+                          {fmtCompact(
+                            inv.showReturns
+                              ? inv.currentValue
+                              : inv.totalInvested,
+                          )}
+                        </Text>
+                        <Text
+                          style={{
+                            color: c.textSecondary,
+                            fontSize: 10,
+                            fontWeight: "500",
+                            marginTop: 2,
+                          }}
+                        >
+                          {inv.showReturns ? "Current Value" : "Total Saved"}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* ROW 2: ENLARGED ICON BLOCK + TITLES (Fixes White Space!) */}
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        marginBottom: 16,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: 14,
+                          backgroundColor: invColor + "1A",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          marginRight: 14,
+                        }}
+                      >
+                        <MaterialCommunityIcons
+                          name={getInvIcon(inv)}
+                          size={28}
+                          color={invColor}
+                        />
+                      </View>
+
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            color: c.text,
+                            fontSize: 16,
+                            fontWeight: "800",
+                            marginBottom: 2,
+                          }}
+                          numberOfLines={1}
+                        >
+                          {inv.name}
+                        </Text>
+                        <Text
+                          style={{
+                            color: c.textSecondary,
+                            fontSize: 12,
+                            fontWeight: "500",
+                            marginBottom: 4,
+                          }}
+                        >
+                          {fmt(inv.monthlyContribution)}/amt • {inv.frequency}
+                        </Text>
+
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                            gap: 6,
+                          }}
+                        >
+                          <MaterialCommunityIcons
+                            name="calendar-outline"
+                            size={14}
+                            color={invColor}
+                          />
+                          <Text
+                            style={{
+                              color: invColor,
+                              fontSize: 12,
+                              fontWeight: "700",
+                            }}
+                          >
+                            Due: {inv.nextPaymentDate || "Not Set"}
+                          </Text>
+                          {inv.tenureYears > 0 ? (
+                            <>
+                              <Text style={{ color: c.border }}>|</Text>
+                              <Text
+                                style={{
+                                  color: c.warning,
+                                  fontSize: 12,
+                                  fontWeight: "700",
+                                }}
+                              >
+                                {remainingPeriods} {periodLabel} left
+                              </Text>
+                            </>
+                          ) : null}
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* ROW 3: BOTTOM FINANCIALS */}
+                    {inv.showReturns ? (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          paddingTop: 12,
+                          borderTopWidth: 1,
+                          borderTopColor: c.border,
+                        }}
+                      >
+                        <View>
+                          <Text
+                            style={{
+                              color: c.textSecondary,
+                              fontSize: 10,
+                              fontWeight: "800",
+                              letterSpacing: 0.5,
+                            }}
+                          >
+                            INVESTED
+                          </Text>
+                          <Text
+                            style={{
+                              color: c.text,
+                              fontSize: 15,
+                              fontWeight: "800",
+                              marginTop: 4,
+                            }}
+                          >
+                            {fmtCompact(inv.totalInvested)}
+                          </Text>
+                        </View>
+                        <View style={{ alignItems: "flex-end" }}>
+                          <Text
+                            style={{
+                              color: c.textSecondary,
+                              fontSize: 10,
+                              fontWeight: "800",
+                              letterSpacing: 0.5,
+                            }}
+                          >
+                            RETURNS
+                          </Text>
+                          <Text
+                            style={{
+                              color: isRet >= 0 ? c.income : c.expense,
+                              fontSize: 15,
+                              fontWeight: "800",
+                              marginTop: 4,
+                            }}
+                          >
+                            {isRet >= 0 ? "+" : "-"}
+                            {fmt(Math.abs(isRet))} ({isRetPct >= 0 ? "+" : ""}
+                            {isRetPct.toFixed(1)}%)
+                          </Text>
+                        </View>
+                      </View>
+                    ) : (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          paddingTop: 12,
+                          borderTopWidth: 1,
+                          borderTopColor: c.border,
+                        }}
+                      >
+                        <View>
+                          <Text
+                            style={{
+                              color: c.textSecondary,
+                              fontSize: 10,
+                              fontWeight: "800",
+                              letterSpacing: 0.5,
+                            }}
+                          >
+                            INVESTED
+                          </Text>
+                          <Text
+                            style={{
+                              color: c.text,
+                              fontSize: 15,
+                              fontWeight: "800",
+                              marginTop: 4,
+                            }}
+                          >
+                            {fmtCompact(inv.totalInvested)}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-          ) : (
-            app.investments.map((i) => (
-              <InvestmentCard
-                key={i.id}
-                inv={i}
-                onPress={() => app.openInvestmentModal(i)}
-              />
-            ))
-          )}
-        </View>
+          ))
+        )}
       </ScrollView>
     </SafeAreaView>
   );

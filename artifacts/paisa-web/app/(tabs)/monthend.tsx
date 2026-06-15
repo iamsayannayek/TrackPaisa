@@ -1,61 +1,29 @@
-import React, { useMemo } from "react";
+import React from "react";
 import {
-  Platform,
-  ScrollView,
-  StatusBar,
-  Text,
-  TouchableOpacity,
   View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useApp } from "@/context/AppContext";
 import { useAppColors } from "@/hooks/useAppColors";
-
-const fmt = (n: number) => `₹${Math.abs(n).toLocaleString("en-IN")}`;
 
 export default function MonthEndScreen() {
   const app = useApp();
   const c = useAppColors();
 
-  const completed = app.monthEndTasks.filter((t) => t.isCompleted).length;
-  const total = app.monthEndTasks.length;
-  const pct = total > 0 ? (completed / total) * 100 : 0;
-
-  const monthTxs = useMemo(
-    () => app.transactions.filter((t) => t.date.startsWith(app.currentMonth)),
-    [app.transactions, app.currentMonth],
-  );
-
-  const income = monthTxs
-    .filter((t) => t.type === "INCOME")
-    .reduce((s, t) => s + t.amount, 0);
-  const expenses = monthTxs
-    .filter((t) => t.type === "EXPENSE")
-    .reduce((s, t) => s + t.amount, 0);
-  const savings = income - expenses;
-  const savingsRate = income > 0 ? (savings / income) * 100 : 0;
-
-  const unpaidCommitments = app.commitments.filter((c2) => !c2.isPaid).length;
-  const budgetOverruns = useMemo(() => {
-    const monthBudgets = app.budgets.filter(
-      (b) => b.month === app.currentMonth,
-    );
-    return monthBudgets.filter((b) => {
-      const spent = monthTxs
-        .filter((t) => t.type === "EXPENSE" && t.category === b.category)
-        .reduce((s, t) => s + t.amount, 0);
-      return spent > b.limit;
-    }).length;
-  }, [app.budgets, monthTxs, app.currentMonth]);
+  const tasks = app.monthEndTasks || [];
+  const completed = tasks.filter((t) => t.isCompleted).length;
+  const total = tasks.length;
+  const progress = total > 0 ? (completed / total) * 100 : 0;
 
   return (
     <SafeAreaView
       edges={["top", "bottom"]}
-      style={{
-        flex: 1,
-        backgroundColor: c.background,
-      }}
+      style={{ flex: 1, backgroundColor: c.background }}
     >
       <StatusBar
         barStyle="light-content"
@@ -63,421 +31,195 @@ export default function MonthEndScreen() {
         translucent={false}
       />
 
-      <View style={{ padding: 16, paddingBottom: 8 }}>
-        <Text
+      <View
+        style={{
+          padding: 16,
+          paddingBottom: 8,
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <Text style={{ color: c.text, fontSize: 24, fontWeight: "800" }}>
+          Month End
+        </Text>
+        <TouchableOpacity
+          onPress={() => app.openTaskModal()}
           style={{
-            color: c.text,
-            fontSize: 22,
-            fontWeight: "800",
-            marginBottom: 2,
+            backgroundColor: c.primary,
+            borderRadius: 10,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
           }}
         >
-          Month-End Closure
-        </Text>
-        <Text style={{ color: c.textSecondary, fontSize: 13 }}>
-          {app.currentMonth} · Wrap up & review
-        </Text>
+          <MaterialCommunityIcons name="plus" size={18} color="#fff" />
+          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>
+            Task
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 110 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 110 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Progress Circular Ring Card */}
         <View
           style={{
             backgroundColor: c.card,
-            borderRadius: c.radius + 2,
+            borderRadius: c.radius + 4,
             padding: 20,
-            marginBottom: 20,
+            marginBottom: 24,
             borderWidth: 1,
             borderColor: c.cardBorder,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 20,
           }}
         >
           <View
             style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
+              width: 70,
+              height: 70,
+              borderRadius: 35,
+              borderWidth: 6,
+              borderColor: c.surfaceElevated,
               alignItems: "center",
-              marginBottom: 14,
-            }}
-          >
-            <View>
-              <Text style={{ color: c.text, fontSize: 17, fontWeight: "700" }}>
-                Checklist Progress
-              </Text>
-              <Text
-                style={{ color: c.textSecondary, fontSize: 13, marginTop: 2 }}
-              >
-                {completed} of {total} tasks done
-              </Text>
-            </View>
-            <View
-              style={{
-                width: 60,
-                height: 60,
-                borderRadius: 30,
-                backgroundColor:
-                  pct === 100 ? c.income + "22" : c.primary + "22",
-                alignItems: "center",
-                justifyContent: "center",
-                borderWidth: 3,
-                borderColor: pct === 100 ? c.income : c.primary,
-              }}
-            >
-              <Text
-                style={{
-                  color: pct === 100 ? c.income : c.primary,
-                  fontSize: 16,
-                  fontWeight: "800",
-                }}
-              >
-                {pct.toFixed(0)}%
-              </Text>
-            </View>
-          </View>
-          <View
-            style={{
-              height: 8,
-              backgroundColor: c.border,
-              borderRadius: 4,
-              overflow: "hidden",
+              justifyContent: "center",
+              position: "relative",
             }}
           >
             <View
               style={{
-                height: 8,
-                borderRadius: 4,
-                width: `${pct}%`,
-                backgroundColor: pct === 100 ? c.income : c.primary,
+                position: "absolute",
+                width: 70,
+                height: 70,
+                borderRadius: 35,
+                borderWidth: 6,
+                borderColor: progress === 100 ? c.income : c.primary,
+                borderTopColor:
+                  progress >= 25
+                    ? progress === 100
+                      ? c.income
+                      : c.primary
+                    : "transparent",
+                borderRightColor:
+                  progress >= 50
+                    ? progress === 100
+                      ? c.income
+                      : c.primary
+                    : "transparent",
+                borderBottomColor:
+                  progress >= 75
+                    ? progress === 100
+                      ? c.income
+                      : c.primary
+                    : "transparent",
+                borderLeftColor: progress >= 100 ? c.income : "transparent",
+                transform: [{ rotate: "-135deg" }],
               }}
             />
+            <Text style={{ color: c.text, fontSize: 15, fontWeight: "800" }}>
+              {Math.round(progress)}%
+            </Text>
           </View>
-          {pct === 100 && (
-            <View
+          <View style={{ flex: 1 }}>
+            <Text
               style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 8,
-                marginTop: 12,
-                backgroundColor: c.income + "11",
-                borderRadius: 10,
-                padding: 10,
+                color: c.textSecondary,
+                fontSize: 12,
+                fontWeight: "700",
+                textTransform: "uppercase",
+                letterSpacing: 0.8,
               }}
             >
-              <Feather name="check-circle" size={18} color={c.income} />
-              <Text
-                style={{ color: c.income, fontWeight: "700", fontSize: 14 }}
-              >
-                Month-end complete! Well done 🎉
-              </Text>
-            </View>
-          )}
-        </View>
-
-        <View
-          style={{
-            backgroundColor: c.card,
-            borderRadius: c.radius,
-            padding: 16,
-            marginBottom: 20,
-            borderWidth: 1,
-            borderColor: c.cardBorder,
-          }}
-        >
-          <Text
-            style={{
-              color: c.text,
-              fontSize: 15,
-              fontWeight: "700",
-              marginBottom: 12,
-            }}
-          >
-            📊 Month Summary
-          </Text>
-          <View style={{ flexDirection: "row", gap: 10, marginBottom: 12 }}>
-            <View
+              Checklist Progress
+            </Text>
+            <Text
               style={{
-                flex: 1,
-                backgroundColor: c.income + "11",
-                borderRadius: 10,
-                padding: 12,
+                color: c.text,
+                fontSize: 20,
+                fontWeight: "800",
+                marginTop: 4,
               }}
             >
-              <Text
-                style={{
-                  color: c.textSecondary,
-                  fontSize: 10,
-                  fontWeight: "600",
-                  textTransform: "uppercase",
-                }}
-              >
-                Income
-              </Text>
+              {completed} of {total} Tasks
+            </Text>
+            {progress === 100 && total > 0 && (
               <Text
                 style={{
                   color: c.income,
-                  fontSize: 15,
+                  fontSize: 13,
                   fontWeight: "700",
-                  marginTop: 4,
+                  marginTop: 6,
                 }}
               >
-                {fmt(income)}
+                All done for this month! 🎉
               </Text>
-            </View>
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: c.expense + "11",
-                borderRadius: 10,
-                padding: 12,
-              }}
-            >
-              <Text
-                style={{
-                  color: c.textSecondary,
-                  fontSize: 10,
-                  fontWeight: "600",
-                  textTransform: "uppercase",
-                }}
-              >
-                Expenses
-              </Text>
-              <Text
-                style={{
-                  color: c.expense,
-                  fontSize: 15,
-                  fontWeight: "700",
-                  marginTop: 4,
-                }}
-              >
-                {fmt(expenses)}
-              </Text>
-            </View>
+            )}
           </View>
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: c.transfer + "11",
-                borderRadius: 10,
-                padding: 12,
-              }}
-            >
-              <Text
-                style={{
-                  color: c.textSecondary,
-                  fontSize: 10,
-                  fontWeight: "600",
-                  textTransform: "uppercase",
-                }}
-              >
-                Net Savings
-              </Text>
-              <Text
-                style={{
-                  color: savings >= 0 ? c.income : c.expense,
-                  fontSize: 15,
-                  fontWeight: "700",
-                  marginTop: 4,
-                }}
-              >
-                {savings >= 0 ? "" : "−"}
-                {fmt(savings)}
-              </Text>
-            </View>
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: c.primary + "11",
-                borderRadius: 10,
-                padding: 12,
-              }}
-            >
-              <Text
-                style={{
-                  color: c.textSecondary,
-                  fontSize: 10,
-                  fontWeight: "600",
-                  textTransform: "uppercase",
-                }}
-              >
-                Savings Rate
-              </Text>
-              <Text
-                style={{
-                  color:
-                    savingsRate >= 20
-                      ? c.income
-                      : savingsRate >= 10
-                        ? "#f59e0b"
-                        : c.expense,
-                  fontSize: 15,
-                  fontWeight: "700",
-                  marginTop: 4,
-                }}
-              >
-                {savingsRate.toFixed(1)}%
-              </Text>
-            </View>
-          </View>
-
-          {(unpaidCommitments > 0 || budgetOverruns > 0) && (
-            <View
-              style={{
-                marginTop: 12,
-                paddingTop: 12,
-                borderTopWidth: 1,
-                borderTopColor: c.border,
-              }}
-            >
-              {unpaidCommitments > 0 && (
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 8,
-                    backgroundColor: "#f59e0b22",
-                    borderRadius: 8,
-                    padding: 10,
-                    marginBottom: 8,
-                  }}
-                >
-                  <Feather name="alert-triangle" size={16} color="#f59e0b" />
-                  <Text
-                    style={{
-                      color: "#f59e0b",
-                      fontSize: 13,
-                      fontWeight: "600",
-                    }}
-                  >
-                    {unpaidCommitments} unpaid commitment
-                    {unpaidCommitments > 1 ? "s" : ""}
-                  </Text>
-                </View>
-              )}
-              {budgetOverruns > 0 && (
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 8,
-                    backgroundColor: c.expense + "22",
-                    borderRadius: 8,
-                    padding: 10,
-                  }}
-                >
-                  <Feather name="alert-circle" size={16} color={c.expense} />
-                  <Text
-                    style={{
-                      color: c.expense,
-                      fontSize: 13,
-                      fontWeight: "600",
-                    }}
-                  >
-                    {budgetOverruns} budget categor
-                    {budgetOverruns > 1 ? "ies" : "y"} over limit
-                  </Text>
-                </View>
-              )}
-            </View>
-          )}
         </View>
 
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 12,
-          }}
-        >
-          <Text style={{ color: c.text, fontSize: 17, fontWeight: "700" }}>
-            ✅ Month-End Checklist
-          </Text>
-          <TouchableOpacity
-            onPress={() => app.openTaskModal()}
-            style={{
-              backgroundColor: c.primary,
-              borderRadius: 8,
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              flexDirection: "row",
-              gap: 4,
-              alignItems: "center",
-            }}
-          >
-            <Feather name="plus" size={14} color="#fff" />
-            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>
-              Add Task
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {app.monthEndTasks.length === 0 ? (
+        {/* Tasks List */}
+        {total === 0 ? (
           <View
             style={{
+              alignItems: "center",
+              padding: 40,
               backgroundColor: c.card,
               borderRadius: c.radius,
-              padding: 32,
-              alignItems: "center",
               borderWidth: 1,
               borderColor: c.cardBorder,
             }}
           >
-            <Feather name="check-square" size={36} color={c.mutedForeground} />
+            <MaterialCommunityIcons
+              name="checkbox-marked-circle-outline"
+              size={48}
+              color={c.mutedForeground}
+            />
             <Text
-              style={{
-                color: c.mutedForeground,
-                fontSize: 14,
-                marginTop: 12,
-                textAlign: "center",
-              }}
+              style={{ color: c.mutedForeground, marginTop: 12, fontSize: 15 }}
             >
-              No tasks yet{"\n"}Add your month-end routine
+              No tasks created yet
             </Text>
           </View>
         ) : (
-          app.monthEndTasks.map((task) => (
-            <View
+          tasks.map((task) => (
+            <TouchableOpacity
               key={task.id}
+              onPress={() => app.toggleMonthEndTask(task.id)}
+              onLongPress={() => app.openTaskModal(task)}
+              activeOpacity={0.7}
               style={{
                 backgroundColor: c.card,
                 borderRadius: c.radius,
-                padding: 14,
-                marginBottom: 8,
+                padding: 16,
+                marginBottom: 12,
                 borderWidth: 1,
                 borderColor: task.isCompleted ? c.income + "44" : c.cardBorder,
                 flexDirection: "row",
                 alignItems: "center",
               }}
             >
-              <TouchableOpacity
-                onPress={() => app.toggleMonthEndTask(task.id)}
-                style={{ marginRight: 12 }}
-                activeOpacity={0.7}
-              >
-                <View
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 12,
-                    borderWidth: 2,
-                    borderColor: task.isCompleted ? c.income : c.border,
-                    backgroundColor: task.isCompleted
-                      ? c.income
-                      : "transparent",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {task.isCompleted && (
-                    <Feather name="check" size={14} color="#fff" />
-                  )}
-                </View>
-              </TouchableOpacity>
+              <MaterialCommunityIcons
+                name={
+                  task.isCompleted
+                    ? "checkbox-marked-circle"
+                    : "checkbox-blank-circle-outline"
+                }
+                size={28}
+                color={task.isCompleted ? c.income : c.mutedForeground}
+                style={{ marginRight: 16 }}
+              />
               <Text
                 style={{
                   flex: 1,
-                  color: task.isCompleted ? c.textTertiary : c.text,
-                  fontSize: 14,
-                  fontWeight: "500",
+                  color: task.isCompleted ? c.textSecondary : c.text,
+                  fontSize: 16,
+                  fontWeight: "600",
                   textDecorationLine: task.isCompleted
                     ? "line-through"
                     : "none",
@@ -485,14 +227,7 @@ export default function MonthEndScreen() {
               >
                 {task.text}
               </Text>
-              <TouchableOpacity
-                onPress={() => app.openTaskModal(task)}
-                style={{ padding: 6 }}
-                activeOpacity={0.7}
-              >
-                <Feather name="edit-2" size={14} color={c.mutedForeground} />
-              </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </ScrollView>

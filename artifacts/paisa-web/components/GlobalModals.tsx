@@ -23,7 +23,6 @@ import AmountInput from "@/components/AmountInput";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 
 // ---- Shared helpers ----
-
 function AppModal({
   visible,
   onClose,
@@ -37,7 +36,6 @@ function AppModal({
 }) {
   const c = useAppColors();
   const insets = useSafeAreaInsets();
-
   return (
     <Modal
       visible={visible}
@@ -54,7 +52,6 @@ function AppModal({
           activeOpacity={1}
           onPress={onClose}
         />
-
         <View
           style={{
             backgroundColor: c.surface,
@@ -92,7 +89,6 @@ function AppModal({
               />
             </TouchableOpacity>
           </View>
-
           <KeyboardAwareScrollViewCompat
             style={{ flexShrink: 1 }}
             contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
@@ -171,11 +167,9 @@ function StyledInput({
 function Row({ children }: { children: React.ReactNode }) {
   return <View style={{ flexDirection: "row", gap: 12 }}>{children}</View>;
 }
-
 function Col({ children, flex }: { children: React.ReactNode; flex?: number }) {
   return <View style={{ flex: flex ?? 1 }}>{children}</View>;
 }
-
 function Field({
   label,
   children,
@@ -256,6 +250,12 @@ const COLORS = [
   "#0ea5e9",
   "#64748b",
   "#334155",
+  "#0f172a",
+  "#1e293b",
+  "#475569",
+  "#ffffff",
+  "#f8fafc",
+  "#f1f5f9",
 ];
 
 function ColorPicker({
@@ -276,8 +276,8 @@ function ColorPicker({
             height: 28,
             borderRadius: 14,
             backgroundColor: col,
-            borderWidth: value === col ? 3 : 0,
-            borderColor: "#fff",
+            borderWidth: value === col ? 3 : 1,
+            borderColor: value === col ? "#000" : "#cbd5e1",
           }}
         />
       ))}
@@ -285,7 +285,6 @@ function ColorPicker({
   );
 }
 
-// 🔥 NEW: VISUAL ICON PICKER (No text labels, just beautiful icons)
 function IconPicker({
   value,
   onChange,
@@ -326,10 +325,16 @@ function IconPicker({
 
 const getSafeFormIcon = (
   icon: string | undefined,
-  type: "ACCOUNT" | "BUDGET",
+  type: "ACCOUNT" | "BUDGET" | "GOAL" | "INV",
 ) => {
-  if (!icon) return type === "ACCOUNT" ? "bank" : "label-outline";
-
+  if (!icon)
+    return type === "ACCOUNT"
+      ? "bank"
+      : type === "GOAL"
+        ? "bullseye-arrow"
+        : type === "INV"
+          ? "chart-line"
+          : "label-outline";
   const validMaterialIcons = [
     "bank",
     "credit-card-multiple",
@@ -372,38 +377,28 @@ const getSafeFormIcon = (
     "face-man",
     "spray",
     "label-outline",
+    "bullseye-arrow",
+    "laptop",
+    "cellphone",
+    "school",
+    "ring",
+    "camera",
+    "umbrella-beach",
+    "chart-pie",
+    "lock",
+    "cash-clock",
+    "chart-line",
   ];
   if (validMaterialIcons.includes(icon)) return icon;
-
-  const accMap: Record<string, string> = {
-    Landmark: "bank",
-    CreditCard: "credit-card-multiple",
-    Wallet: "wallet-bifold",
-    PiggyBank: "piggy-bank",
-    Briefcase: "briefcase",
-    DollarSign: "cash",
-  };
-  const budgetMap: Record<string, string> = {
-    Wallet: "wallet-bifold",
-    Coffee: "coffee",
-    Car: "car",
-    ShoppingCart: "cart",
-    Zap: "lightning-bolt",
-    Heart: "heart-pulse",
-    Activity: "heart-pulse",
-    Book: "book-open-page-variant",
-    Music: "music",
-    Home: "home",
-    Gift: "gift",
-    Globe: "airplane",
-  };
-
-  if (type === "ACCOUNT") return accMap[icon] || "bank";
-  if (type === "BUDGET") return budgetMap[icon] || "label-outline";
-  return icon;
+  return type === "ACCOUNT"
+    ? "bank"
+    : type === "BUDGET"
+      ? "label-outline"
+      : type === "INV"
+        ? "chart-line"
+        : "bullseye-arrow";
 };
 
-// Raw Icon Names for the Grid
 const ACCOUNT_ICONS = [
   "bank",
   "credit-card-multiple",
@@ -417,7 +412,6 @@ const ACCOUNT_ICONS = [
   "hand-coin",
   "briefcase",
 ];
-
 const BUDGET_ICONS = [
   "home",
   "cart",
@@ -444,6 +438,36 @@ const BUDGET_ICONS = [
   "palette",
   "label-outline",
 ];
+const GOAL_ICONS = [
+  "bullseye-arrow",
+  "airplane",
+  "car",
+  "home",
+  "laptop",
+  "cellphone",
+  "school",
+  "ring",
+  "baby-carriage",
+  "camera",
+  "umbrella-beach",
+  "cart",
+  "gift",
+  "piggy-bank",
+  "cash",
+];
+const INV_ICONS = [
+  "chart-line",
+  "chart-pie",
+  "bank",
+  "shield-check",
+  "lock",
+  "cash-clock",
+  "finance",
+  "bitcoin",
+  "piggy-bank",
+  "trending-up",
+  "briefcase",
+];
 
 const INCOME_CATEGORIES = [
   "Salary",
@@ -466,13 +490,11 @@ export function TxModal() {
   const c = useAppColors();
   const form = app.txForm;
   const set = app.setTxForm;
-
   const [hasWarnedBudget, setHasWarnedBudget] = useState(false);
 
   useEffect(() => {
     if (!app.isTxModalOpen) setHasWarnedBudget(false);
   }, [app.isTxModalOpen]);
-
   useEffect(() => {
     if (
       app.isTxModalOpen &&
@@ -520,7 +542,6 @@ export function TxModal() {
       group: "Investments",
     })),
   ];
-
   const isIncome = form.type === "INCOME";
   const expenseCategories =
     app.budgets.length > 0 ? app.budgets.map((b) => b.category) : ["Others"];
@@ -575,7 +596,6 @@ export function TxModal() {
           </TouchableOpacity>
         ))}
       </View>
-
       <Field label="Amount">
         <AmountInput
           value={form.amount}
@@ -642,7 +662,6 @@ export function AccountModal() {
   const app = useApp();
   const form = app.accForm;
   const set = app.setAccForm;
-
   const accTypes: SelectOption[] = [
     { value: "BANK", label: "Bank Account" },
     { value: "CASH_WALLET", label: "Physical Wallet" },
@@ -683,7 +702,6 @@ export function AccountModal() {
           </Field>
         </Col>
       </Row>
-
       {form.type === "CREDIT_CARD" && (
         <Row>
           <Col>
@@ -706,7 +724,6 @@ export function AccountModal() {
           </Col>
         </Row>
       )}
-
       <Field label="Purpose / Note">
         <StyledInput
           value={form.purpose ?? ""}
@@ -714,8 +731,6 @@ export function AccountModal() {
           placeholder="What is this money for?"
         />
       </Field>
-
-      {/* 🔥 REPLACED SELECT PICKER WITH ICON PICKER GRID */}
       <Field label="Choose an Icon">
         <IconPicker
           icons={ACCOUNT_ICONS}
@@ -723,7 +738,6 @@ export function AccountModal() {
           onChange={(v) => set((p) => ({ ...p, icon: v }))}
         />
       </Field>
-
       <Field label="Theme Color">
         <ColorPicker
           value={form.color ?? "#1d4ed8"}
@@ -764,8 +778,6 @@ export function BudgetModal() {
           placeholder="0"
         />
       </Field>
-
-      {/* 🔥 REPLACED SELECT PICKER WITH ICON PICKER GRID */}
       <Field label="Choose an Icon">
         <IconPicker
           icons={BUDGET_ICONS}
@@ -773,7 +785,6 @@ export function BudgetModal() {
           onChange={(v) => set((p) => ({ ...p, icon: v }))}
         />
       </Field>
-
       <Field label="Theme Color">
         <ColorPicker
           value={form.color ?? "#3b82f6"}
@@ -793,7 +804,6 @@ export function CommitmentModal() {
   const app = useApp();
   const form = app.commitmentForm;
   const set = app.setCommitmentForm;
-
   const accOptions: SelectOption[] = app.accounts.map((a) => ({
     value: a.id,
     label: a.name,
@@ -887,6 +897,7 @@ export function CommitmentModal() {
 // ---- Goal Modal ----
 export function GoalModal() {
   const app = useApp();
+  const c = useAppColors();
   const form = app.goalForm;
   const set = app.setGoalForm;
   const accOptions: SelectOption[] = app.accounts.map((a) => ({
@@ -927,6 +938,75 @@ export function GoalModal() {
           </Field>
         </Col>
       </Row>
+
+      <Field label="Choose Goal Icon">
+        <IconPicker
+          icons={GOAL_ICONS}
+          value={getSafeFormIcon((form as any).icon, "GOAL")}
+          onChange={(v) => set((p) => ({ ...p, icon: v }) as any)}
+        />
+      </Field>
+
+      <Text
+        style={{
+          color: c.text,
+          fontSize: 16,
+          fontWeight: "800",
+          marginBottom: 12,
+          marginTop: 8,
+        }}
+      >
+        Goal Appearance
+      </Text>
+
+      <Field label="Card Background Color">
+        <ColorPicker
+          value={(form as any).color ?? "#ffffff"}
+          onChange={(v) => set((p) => ({ ...p, color: v }) as any)}
+        />
+      </Field>
+
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          paddingVertical: 8,
+          marginBottom: 12,
+        }}
+      >
+        <View>
+          <Text style={{ color: c.text, fontSize: 14, fontWeight: "600" }}>
+            Use Light Text
+          </Text>
+          <Text style={{ color: c.textSecondary, fontSize: 11, marginTop: 2 }}>
+            Toggle ON if card background is very dark
+          </Text>
+        </View>
+        <Switch
+          value={!!(form as any).textColorLight}
+          onValueChange={(v) =>
+            set((p) => ({ ...p, textColorLight: v }) as any)
+          }
+          thumbColor="#fff"
+          trackColor={{ false: c.border, true: c.primary }}
+        />
+      </View>
+
+      <Field label="Icon Background Color">
+        <ColorPicker
+          value={(form as any).iconBgColor ?? c.primary + "1A"}
+          onChange={(v) => set((p) => ({ ...p, iconBgColor: v }) as any)}
+        />
+      </Field>
+
+      <Field label="Icon Symbol Color">
+        <ColorPicker
+          value={(form as any).iconColor ?? c.primary}
+          onChange={(v) => set((p) => ({ ...p, iconColor: v }) as any)}
+        />
+      </Field>
+
       <Field label="Target Date">
         <DateInput
           value={form.deadline ?? ""}
@@ -952,7 +1032,6 @@ export function GoalModal() {
 // ---- Investment Modal ----
 export function InvestmentModal() {
   const app = useApp();
-  const c = useAppColors();
   const form = app.invForm;
   const set = app.setInvForm;
 
@@ -1073,6 +1152,21 @@ export function InvestmentModal() {
         />
       </Field>
 
+      {/* 🔥 ADDED: Icon Picker AND Color Picker for Investments! */}
+      <Field label="Choose an Icon">
+        <IconPicker
+          icons={INV_ICONS}
+          value={getSafeFormIcon((form as any).icon, "INV")}
+          onChange={(v) => set((p) => ({ ...p, icon: v }) as any)}
+        />
+      </Field>
+      <Field label="Theme Color">
+        <ColorPicker
+          value={(form as any).color ?? "#3b82f6"}
+          onChange={(v) => set((p) => ({ ...p, color: v }) as any)}
+        />
+      </Field>
+
       {isMaturity && (
         <Row>
           <Col>
@@ -1121,30 +1215,6 @@ export function InvestmentModal() {
               </Field>
             </Col>
           </Row>
-          {totalPeriods > 0 && (
-            <View
-              style={{
-                backgroundColor: c.surfaceElevated,
-                padding: 12,
-                borderRadius: 8,
-                marginBottom: 16,
-              }}
-            >
-              <Text style={{ color: c.textSecondary, fontSize: 12 }}>
-                Total Plan Duration: {totalPeriods} {periodLabel}
-              </Text>
-              <Text
-                style={{
-                  color: c.primary,
-                  fontSize: 13,
-                  fontWeight: "700",
-                  marginTop: 4,
-                }}
-              >
-                Remaining to Pay: {remainingPeriods} {periodLabel}
-              </Text>
-            </View>
-          )}
         </>
       )}
 
@@ -1178,71 +1248,6 @@ export function InvestmentModal() {
           </Field>
         </Col>
       </Row>
-
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          paddingVertical: 12,
-        }}
-      >
-        <Text
-          style={{ color: c.text, fontSize: 14, fontWeight: "500", flex: 1 }}
-        >
-          Auto-Schedule Upcoming Payments
-        </Text>
-        <Switch
-          value={!!form.autoSchedule}
-          onValueChange={(v) => set((p) => ({ ...p, autoSchedule: v }))}
-          thumbColor="#fff"
-          trackColor={{ false: c.border, true: c.primary }}
-        />
-      </View>
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          paddingVertical: 12,
-          borderTopWidth: 1,
-          borderTopColor: c.border,
-          marginTop: 4,
-        }}
-      >
-        <Text
-          style={{ color: c.text, fontSize: 14, fontWeight: "500", flex: 1 }}
-        >
-          Treat as Expense in Budgets
-        </Text>
-        <Switch
-          value={!!form.treatAsExpense}
-          onValueChange={(v) => set((p) => ({ ...p, treatAsExpense: v }))}
-          thumbColor="#fff"
-          trackColor={{ false: c.border, true: c.primary }}
-        />
-      </View>
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          paddingVertical: 12,
-          marginBottom: 16,
-        }}
-      >
-        <Text
-          style={{ color: c.text, fontSize: 14, fontWeight: "500", flex: 1 }}
-        >
-          Track Performance (Show Returns %)
-        </Text>
-        <Switch
-          value={!!form.showReturns}
-          onValueChange={(v) => set((p) => ({ ...p, showReturns: v }))}
-          thumbColor="#fff"
-          trackColor={{ false: c.border, true: c.primary }}
-        />
-      </View>
 
       <Row>
         {app.editingInv && <DeleteBtn onPress={app.handleDeleteInvestment} />}
@@ -1280,9 +1285,7 @@ export function TaskModal() {
   );
 }
 
-// ---- All Modals Combined ----
 import ProfileSheet from "./ProfileSheet";
-
 export default function GlobalModals() {
   return (
     <React.Fragment>

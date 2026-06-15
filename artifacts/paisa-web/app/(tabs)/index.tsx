@@ -696,9 +696,13 @@ function AllTransactionsView({ onClose }: { onClose: () => void }) {
   >("ALL");
 
   const filtered = useMemo(() => {
-    const monthTxs = app.transactions.filter((t) =>
-      t.date.startsWith(app.currentMonth),
-    );
+    // 1. Filter by current month
+    // 2. Sort by date descending (Newest first)
+    const monthTxs = app.transactions
+      .filter((t) => t.date.startsWith(app.currentMonth))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    // 3. Filter by the active tab (ALL, INCOME, EXPENSE, TRANSFER)
     return filter === "ALL"
       ? monthTxs
       : monthTxs.filter((t) => t.type === filter);

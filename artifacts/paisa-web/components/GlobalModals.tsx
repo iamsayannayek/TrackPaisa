@@ -285,12 +285,95 @@ function ColorPicker({
   );
 }
 
-// 🔥 SMART LEGACY MAPPER: Converts old broken icons to new premium ones automatically
+// 🔥 NEW: VISUAL ICON PICKER (No text labels, just beautiful icons)
+function IconPicker({
+  value,
+  onChange,
+  icons,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  icons: string[];
+}) {
+  const c = useAppColors();
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+      {icons.map((icon) => (
+        <TouchableOpacity
+          key={icon}
+          onPress={() => onChange(icon)}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: value === icon ? c.primary : c.surfaceElevated,
+            alignItems: "center",
+            justifyContent: "center",
+            borderWidth: value === icon ? 0 : 1,
+            borderColor: c.border,
+          }}
+        >
+          <MaterialCommunityIcons
+            name={icon as any}
+            size={22}
+            color={value === icon ? "#fff" : c.textSecondary}
+          />
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
+
 const getSafeFormIcon = (
   icon: string | undefined,
   type: "ACCOUNT" | "BUDGET",
 ) => {
-  if (!icon) return type === "ACCOUNT" ? "bank" : "wallet-bifold";
+  if (!icon) return type === "ACCOUNT" ? "bank" : "label-outline";
+
+  const validMaterialIcons = [
+    "bank",
+    "credit-card-multiple",
+    "wallet-bifold",
+    "piggy-bank",
+    "briefcase",
+    "cash",
+    "cellphone-nfc",
+    "safe",
+    "finance",
+    "bitcoin",
+    "cash-multiple",
+    "hand-coin",
+    "home",
+    "cart",
+    "car",
+    "gas-station",
+    "food-fork-drink",
+    "coffee",
+    "lightning-bolt",
+    "wifi",
+    "movie-open",
+    "baby-carriage",
+    "paw",
+    "face-woman-shimmer",
+    "heart-pulse",
+    "hospital-box",
+    "pill",
+    "tshirt-crew",
+    "shoe-sneaker",
+    "dumbbell",
+    "book-open-page-variant",
+    "airplane",
+    "gift",
+    "bank-transfer",
+    "shield-check",
+    "leaf",
+    "palette",
+    "emoticon-happy",
+    "face-man",
+    "spray",
+    "label-outline",
+  ];
+  if (validMaterialIcons.includes(icon)) return icon;
 
   const accMap: Record<string, string> = {
     Landmark: "bank",
@@ -300,14 +383,13 @@ const getSafeFormIcon = (
     Briefcase: "briefcase",
     DollarSign: "cash",
   };
-
   const budgetMap: Record<string, string> = {
     Wallet: "wallet-bifold",
     Coffee: "coffee",
     Car: "car",
     ShoppingCart: "cart",
     Zap: "lightning-bolt",
-    Heart: "heart",
+    Heart: "heart-pulse",
     Activity: "heart-pulse",
     Book: "book-open-page-variant",
     Music: "music",
@@ -316,54 +398,66 @@ const getSafeFormIcon = (
     Globe: "airplane",
   };
 
-  if (type === "ACCOUNT") return accMap[icon] || icon;
-  if (type === "BUDGET") return budgetMap[icon] || icon;
+  if (type === "ACCOUNT") return accMap[icon] || "bank";
+  if (type === "BUDGET") return budgetMap[icon] || "label-outline";
   return icon;
 };
 
-// 🔥 EXPANDED FINTECH ACCOUNT ICONS
-const ACCOUNT_ICON_OPTIONS: SelectOption[] = [
-  { value: "bank", label: "🏦 Traditional Bank" },
-  { value: "credit-card-multiple", label: "💳 Credit Card" },
-  { value: "wallet-bifold", label: "👛 Physical Wallet" },
-  { value: "cellphone-nfc", label: "📱 UPI / Mobile App" },
-  { value: "piggy-bank", label: "🐷 Savings / Piggy Bank" },
-  { value: "safe", label: "🗄️ Vault / Safe" },
-  { value: "finance", label: "📈 Investment Acct" },
-  { value: "bitcoin", label: "₿ Crypto Wallet" },
-  { value: "cash-multiple", label: "💵 Cash Stack" },
-  { value: "hand-coin", label: "🤝 Loan / Borrowed" },
-  { value: "briefcase", label: "💼 Business Acct" },
+// Raw Icon Names for the Grid
+const ACCOUNT_ICONS = [
+  "bank",
+  "credit-card-multiple",
+  "wallet-bifold",
+  "cellphone-nfc",
+  "piggy-bank",
+  "safe",
+  "finance",
+  "bitcoin",
+  "cash-multiple",
+  "hand-coin",
+  "briefcase",
 ];
 
-const BUDGET_ICON_OPTIONS: SelectOption[] = [
-  { value: "wallet-bifold", label: "👛 Wallet" },
-  { value: "coffee", label: "☕ Food & Coffee" },
-  { value: "car", label: "🚗 Transport" },
-  { value: "cart", label: "🛒 Shopping" },
-  { value: "lightning-bolt", label: "⚡ Bills" },
-  { value: "heart", label: "❤️ Family" },
-  { value: "heart-pulse", label: "🏃 Health" },
-  { value: "book-open-page-variant", label: "📚 Education" },
-  { value: "music", label: "🎵 Entertainment" },
-  { value: "home", label: "🏠 Housing" },
-  { value: "gift", label: "🎁 Gifts" },
-  { value: "airplane", label: "✈️ Travel" },
+const BUDGET_ICONS = [
+  "home",
+  "cart",
+  "car",
+  "gas-station",
+  "food-fork-drink",
+  "coffee",
+  "lightning-bolt",
+  "wifi",
+  "movie-open",
+  "baby-carriage",
+  "paw",
+  "face-woman-shimmer",
+  "heart-pulse",
+  "pill",
+  "tshirt-crew",
+  "dumbbell",
+  "book-open-page-variant",
+  "airplane",
+  "gift",
+  "bank-transfer",
+  "shield-check",
+  "piggy-bank",
+  "palette",
+  "label-outline",
 ];
 
 const INCOME_CATEGORIES = [
-  "💼 Salary",
-  "💻 Freelancing",
-  "🏢 Business",
-  "📈 Investment",
-  "🏠 Rental Income",
-  "🎁 Gift",
-  "🎓 Scholarship",
-  "💸 Cashback",
-  "🔄 Refund",
-  "🎥 YouTube Income",
-  "🚀 Side Hustle",
-  "📦 Other",
+  "Salary",
+  "Freelancing",
+  "Business",
+  "Investment",
+  "Rental Income",
+  "Gift",
+  "Scholarship",
+  "Cashback",
+  "Refund",
+  "YouTube Income",
+  "Side Hustle",
+  "Other",
 ];
 
 // ---- Transaction Modal ----
@@ -389,11 +483,11 @@ export function TxModal() {
     ) {
       Alert.alert(
         "No Budgets Found",
-        "Please create your budget categories first.\n\nFor now, only the '📦 Others' category is available.",
+        "Please create your budget categories first.\n\nFor now, only the 'Others' category is available.",
         [{ text: "Got it" }],
       );
       setHasWarnedBudget(true);
-      if (!form.category) set((p) => ({ ...p, category: "📦 Others" }));
+      if (!form.category) set((p) => ({ ...p, category: "Others" }));
     }
   }, [
     app.isTxModalOpen,
@@ -410,12 +504,10 @@ export function TxModal() {
     "EXPENSE",
     "TRANSFER",
   ];
-
   const accOptions: SelectOption[] = app.accounts.map((a) => ({
     value: a.id,
     label: a.name,
   }));
-
   const destOptions: SelectOption[] = [
     ...app.accounts.map((a) => ({
       value: a.id,
@@ -431,7 +523,7 @@ export function TxModal() {
 
   const isIncome = form.type === "INCOME";
   const expenseCategories =
-    app.budgets.length > 0 ? app.budgets.map((b) => b.category) : ["📦 Others"];
+    app.budgets.length > 0 ? app.budgets.map((b) => b.category) : ["Others"];
   const dynamicCategories = Array.from(
     new Set([
       ...(form.category ? [form.category] : []),
@@ -548,7 +640,6 @@ export function TxModal() {
 // ---- Account Modal ----
 export function AccountModal() {
   const app = useApp();
-  const c = useAppColors();
   const form = app.accForm;
   const set = app.setAccForm;
 
@@ -624,16 +715,16 @@ export function AccountModal() {
         />
       </Field>
 
-      <Field label="Icon">
-        <SelectPicker
-          options={ACCOUNT_ICON_OPTIONS}
-          value={getSafeFormIcon(form.icon, "ACCOUNT")} // 🔥 SAFELY FIXES BROKEN ICONS
+      {/* 🔥 REPLACED SELECT PICKER WITH ICON PICKER GRID */}
+      <Field label="Choose an Icon">
+        <IconPicker
+          icons={ACCOUNT_ICONS}
+          value={getSafeFormIcon(form.icon, "ACCOUNT")}
           onChange={(v) => set((p) => ({ ...p, icon: v }))}
-          placeholder="Select icon..."
         />
       </Field>
 
-      <Field label="Color">
+      <Field label="Theme Color">
         <ColorPicker
           value={form.color ?? "#1d4ed8"}
           onChange={(v) => set((p) => ({ ...p, color: v }))}
@@ -673,15 +764,17 @@ export function BudgetModal() {
           placeholder="0"
         />
       </Field>
-      <Field label="Icon">
-        <SelectPicker
-          options={BUDGET_ICON_OPTIONS}
-          value={getSafeFormIcon(form.icon, "BUDGET")} // 🔥 SAFELY FIXES BROKEN ICONS
+
+      {/* 🔥 REPLACED SELECT PICKER WITH ICON PICKER GRID */}
+      <Field label="Choose an Icon">
+        <IconPicker
+          icons={BUDGET_ICONS}
+          value={getSafeFormIcon(form.icon, "BUDGET")}
           onChange={(v) => set((p) => ({ ...p, icon: v }))}
-          placeholder="Select icon..."
         />
       </Field>
-      <Field label="Color">
+
+      <Field label="Theme Color">
         <ColorPicker
           value={form.color ?? "#3b82f6"}
           onChange={(v) => set((p) => ({ ...p, color: v }))}

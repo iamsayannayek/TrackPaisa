@@ -8,12 +8,67 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useApp } from "@/context/AppContext";
 import { useAppColors } from "@/hooks/useAppColors";
 import SelectPicker from "@/components/SelectPicker";
 
 const fmt = (n: number) => `₹${Math.abs(n).toLocaleString("en-IN")}`;
+
+// 🔥 SMART LEGACY MAPPER: Ensures budget icons render perfectly and fixes old DB entries
+const getSafeIcon = (
+  iconStr: string | undefined,
+): keyof typeof MaterialCommunityIcons.glyphMap => {
+  if (!iconStr) return "label-outline";
+
+  const validIcons = [
+    "home",
+    "cart",
+    "car",
+    "gas-station",
+    "food-fork-drink",
+    "coffee",
+    "lightning-bolt",
+    "wifi",
+    "movie-open",
+    "baby-carriage",
+    "paw",
+    "face-woman-shimmer",
+    "heart-pulse",
+    "pill",
+    "tshirt-crew",
+    "dumbbell",
+    "book-open-page-variant",
+    "airplane",
+    "gift",
+    "bank-transfer",
+    "shield-check",
+    "piggy-bank",
+    "palette",
+    "label-outline",
+    "wallet-bifold",
+  ];
+  if (validIcons.includes(iconStr)) {
+    return iconStr as keyof typeof MaterialCommunityIcons.glyphMap;
+  }
+
+  const map: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
+    Wallet: "wallet-bifold",
+    Coffee: "coffee",
+    Car: "car",
+    ShoppingCart: "cart",
+    Zap: "lightning-bolt",
+    Heart: "heart-pulse",
+    Activity: "heart-pulse",
+    Book: "book-open-page-variant",
+    Music: "music",
+    Home: "home",
+    Gift: "gift",
+    Globe: "airplane",
+  };
+
+  return map[iconStr] || "label-outline";
+};
 
 function MonthNav({
   month,
@@ -49,7 +104,7 @@ function MonthNav({
       }}
     >
       <TouchableOpacity onPress={prev} style={{ padding: 8, borderRadius: 8 }}>
-        <Feather name="chevron-left" size={18} color={c.text} />
+        <MaterialCommunityIcons name="chevron-left" size={24} color={c.text} />
       </TouchableOpacity>
       <Text
         style={{
@@ -63,7 +118,7 @@ function MonthNav({
         {label}
       </Text>
       <TouchableOpacity onPress={next} style={{ padding: 8, borderRadius: 8 }}>
-        <Feather name="chevron-right" size={18} color={c.text} />
+        <MaterialCommunityIcons name="chevron-right" size={24} color={c.text} />
       </TouchableOpacity>
     </View>
   );
@@ -181,7 +236,7 @@ export default function BudgetScreen() {
               gap: 6,
             }}
           >
-            <Feather name="plus" size={16} color="#fff" />
+            <MaterialCommunityIcons name="plus" size={18} color="#fff" />
             <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>
               Add
             </Text>
@@ -423,7 +478,11 @@ export default function BudgetScreen() {
               marginBottom: 16,
             }}
           >
-            <Feather name="pie-chart" size={40} color={c.mutedForeground} />
+            <MaterialCommunityIcons
+              name="chart-donut"
+              size={48}
+              color={c.mutedForeground}
+            />
             <Text
               style={{
                 color: c.mutedForeground,
@@ -456,39 +515,49 @@ export default function BudgetScreen() {
                     flexDirection: "row",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    marginBottom: 8,
+                    marginBottom: 10,
                   }}
                 >
                   <View
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      gap: 10,
+                      gap: 12,
                     }}
                   >
                     <View
                       style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 18,
+                        width: 44, // 🔥 BIGGER SIZE
+                        height: 44, // 🔥 BIGGER SIZE
+                        borderRadius: 14, // 🔥 SOFTER CORNERS MATCHING ACCOUNTS
                         backgroundColor: b.color + "22",
                         alignItems: "center",
                         justifyContent: "center",
                       }}
                     >
-                      <Feather name="tag" size={16} color={b.color} />
+                      <MaterialCommunityIcons
+                        name={getSafeIcon(b.icon)}
+                        size={24}
+                        color={b.color}
+                      />
                     </View>
                     <View>
                       <Text
                         style={{
                           color: c.text,
-                          fontSize: 14,
+                          fontSize: 16, // slightly bigger text to match icon
                           fontWeight: "700",
                         }}
                       >
                         {b.category}
                       </Text>
-                      <Text style={{ color: c.textSecondary, fontSize: 11 }}>
+                      <Text
+                        style={{
+                          color: c.textSecondary,
+                          fontSize: 12,
+                          marginTop: 2,
+                        }}
+                      >
                         {fmt(b.spent)} of {fmt(b.limit)}
                       </Text>
                     </View>
@@ -498,7 +567,7 @@ export default function BudgetScreen() {
                       style={{
                         color: b.remaining >= 0 ? c.income : c.expense,
                         fontWeight: "700",
-                        fontSize: 14,
+                        fontSize: 15,
                       }}
                     >
                       {b.remaining >= 0
@@ -508,8 +577,9 @@ export default function BudgetScreen() {
                     <Text
                       style={{
                         color: b.pct > 90 ? c.expense : c.textSecondary,
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: "600",
+                        marginTop: 2,
                       }}
                     >
                       {b.pct.toFixed(0)}%

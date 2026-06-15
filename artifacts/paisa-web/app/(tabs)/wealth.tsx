@@ -20,6 +20,17 @@ const fmtCompact = (n: number) => {
   return `₹${n}`;
 };
 
+// 🔥 SMART CONTRAST ENGINE
+const getContrastYIQ = (hexcolor: string) => {
+  if (!hexcolor) return "#ffffff";
+  const hex = hexcolor.replace("#", "");
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 128 ? "#0f172a" : "#ffffff";
+};
+
 export default function WealthScreen() {
   const app = useApp();
   const c = useAppColors();
@@ -240,20 +251,21 @@ export default function WealthScreen() {
                 const gData = g as any;
                 const bgColor = gData.color || c.card;
                 const isCustom = bgColor !== c.card;
+                const useLightText = gData.textColorLight;
                 const tColor = isCustom
-                  ? gData.textColorLight
+                  ? useLightText
                     ? "#ffffff"
                     : "#0f172a"
                   : c.text;
                 const tColorSec = isCustom
-                  ? gData.textColorLight
+                  ? useLightText
                     ? "rgba(255,255,255,0.8)"
                     : "rgba(15,23,42,0.7)"
                   : c.textSecondary;
                 const iconBg =
                   gData.iconBgColor ||
                   (isCustom
-                    ? gData.textColorLight
+                    ? useLightText
                       ? "rgba(255,255,255,0.2)"
                       : "rgba(0,0,0,0.1)"
                     : c.primary + "1A");
@@ -365,7 +377,7 @@ export default function WealthScreen() {
                       style={{
                         height: 6,
                         backgroundColor: isCustom
-                          ? gData.textColorLight
+                          ? useLightText
                             ? "rgba(255,255,255,0.3)"
                             : "rgba(0,0,0,0.1)"
                           : c.border,
@@ -559,98 +571,123 @@ export default function WealthScreen() {
                       flexDirection: "column",
                     }}
                   >
-                    {/* ROW 1: TAGS & CURRENT VALUE */}
+                    {/* ROW 1: BIG ICON + BADGES + CURRENT VALUE */}
                     <View
                       style={{
                         flexDirection: "row",
                         justifyContent: "space-between",
                         alignItems: "flex-start",
-                        marginBottom: 16,
+                        marginBottom: 12,
                       }}
                     >
+                      {/* Left side: Icon block followed by badges */}
                       <View
                         style={{
                           flexDirection: "row",
-                          gap: 6,
-                          flexWrap: "wrap",
+                          alignItems: "center",
                           flex: 1,
                           paddingRight: 8,
                         }}
                       >
                         <View
                           style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: 12,
                             backgroundColor: typeBg,
-                            paddingHorizontal: 6,
-                            paddingVertical: 2,
-                            borderRadius: 4,
-                            marginBottom: 4,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            marginRight: 12,
                           }}
                         >
-                          <Text
-                            style={{
-                              color: typeCol,
-                              fontSize: 10,
-                              fontWeight: "800",
-                            }}
-                          >
-                            {inv.type}
-                          </Text>
+                          <MaterialCommunityIcons
+                            name={getInvIcon(inv)}
+                            size={24}
+                            color={invColor}
+                          />
                         </View>
-                        {inv.treatAsExpense ? (
+
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            flexWrap: "wrap",
+                            gap: 6,
+                            flex: 1,
+                          }}
+                        >
                           <View
                             style={{
-                              backgroundColor: expBg,
+                              backgroundColor: typeBg,
                               paddingHorizontal: 6,
                               paddingVertical: 2,
                               borderRadius: 4,
-                              marginBottom: 4,
                             }}
                           >
                             <Text
                               style={{
-                                color: expCol,
+                                color: typeCol,
                                 fontSize: 10,
                                 fontWeight: "800",
-                                textTransform: "uppercase",
                               }}
                             >
-                              EXPENSE
+                              {inv.type}
                             </Text>
                           </View>
-                        ) : null}
-                        {inv.skippedCount > 0 ? (
-                          <View
-                            style={{
-                              backgroundColor: skipBg,
-                              paddingHorizontal: 6,
-                              paddingVertical: 2,
-                              borderRadius: 4,
-                              flexDirection: "row",
-                              alignItems: "center",
-                              gap: 2,
-                              marginBottom: 4,
-                            }}
-                          >
-                            <MaterialCommunityIcons
-                              name="alert"
-                              size={10}
-                              color={skipCol}
-                            />
-                            <Text
+                          {inv.treatAsExpense ? (
+                            <View
                               style={{
-                                color: skipCol,
-                                fontSize: 10,
-                                fontWeight: "800",
-                                textTransform: "uppercase",
+                                backgroundColor: expBg,
+                                paddingHorizontal: 6,
+                                paddingVertical: 2,
+                                borderRadius: 4,
                               }}
                             >
-                              {inv.skippedCount} SKIPPED
-                            </Text>
-                          </View>
-                        ) : null}
+                              <Text
+                                style={{
+                                  color: expCol,
+                                  fontSize: 10,
+                                  fontWeight: "800",
+                                  textTransform: "uppercase",
+                                }}
+                              >
+                                EXPENSE
+                              </Text>
+                            </View>
+                          ) : null}
+                          {inv.skippedCount > 0 ? (
+                            <View
+                              style={{
+                                backgroundColor: skipBg,
+                                paddingHorizontal: 6,
+                                paddingVertical: 2,
+                                borderRadius: 4,
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 2,
+                              }}
+                            >
+                              <MaterialCommunityIcons
+                                name="alert"
+                                size={10}
+                                color={skipCol}
+                              />
+                              <Text
+                                style={{
+                                  color: skipCol,
+                                  fontSize: 10,
+                                  fontWeight: "800",
+                                  textTransform: "uppercase",
+                                }}
+                              >
+                                {inv.skippedCount} SKIPPED
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
                       </View>
 
-                      <View style={{ alignItems: "flex-end", paddingLeft: 8 }}>
+                      {/* Right side: Value */}
+                      <View style={{ alignItems: "flex-end" }}>
                         <Text
                           style={{
                             color: c.text,
@@ -677,96 +714,72 @@ export default function WealthScreen() {
                       </View>
                     </View>
 
-                    {/* ROW 2: ENLARGED ICON BLOCK + TITLES (Fixes White Space!) */}
+                    {/* ROW 2: TITLE */}
+                    <Text
+                      style={{
+                        color: c.text,
+                        fontSize: 18,
+                        fontWeight: "800",
+                        marginBottom: 4,
+                      }}
+                      numberOfLines={1}
+                    >
+                      {inv.name}
+                    </Text>
+
+                    {/* ROW 3: CONTRIBUTION */}
+                    <Text
+                      style={{
+                        color: c.textSecondary,
+                        fontSize: 12,
+                        fontWeight: "500",
+                        marginBottom: 12,
+                      }}
+                    >
+                      {fmt(inv.monthlyContribution)}/amt • {inv.frequency}
+                    </Text>
+
+                    {/* ROW 4: DUE DATE & QUARTERS */}
                     <View
                       style={{
                         flexDirection: "row",
                         alignItems: "center",
+                        flexWrap: "wrap",
+                        gap: 6,
                         marginBottom: 16,
                       }}
                     >
-                      <View
+                      <MaterialCommunityIcons
+                        name="calendar-outline"
+                        size={14}
+                        color={invColor}
+                      />
+                      <Text
                         style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 14,
-                          backgroundColor: invColor + "1A",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          marginRight: 14,
+                          color: invColor,
+                          fontSize: 12,
+                          fontWeight: "700",
                         }}
                       >
-                        <MaterialCommunityIcons
-                          name={getInvIcon(inv)}
-                          size={28}
-                          color={invColor}
-                        />
-                      </View>
-
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={{
-                            color: c.text,
-                            fontSize: 16,
-                            fontWeight: "800",
-                            marginBottom: 2,
-                          }}
-                          numberOfLines={1}
-                        >
-                          {inv.name}
-                        </Text>
-                        <Text
-                          style={{
-                            color: c.textSecondary,
-                            fontSize: 12,
-                            fontWeight: "500",
-                            marginBottom: 4,
-                          }}
-                        >
-                          {fmt(inv.monthlyContribution)}/amt • {inv.frequency}
-                        </Text>
-
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            flexWrap: "wrap",
-                            gap: 6,
-                          }}
-                        >
-                          <MaterialCommunityIcons
-                            name="calendar-outline"
-                            size={14}
-                            color={invColor}
-                          />
+                        Due: {inv.nextPaymentDate || "Not Set"}
+                      </Text>
+                      {inv.tenureYears > 0 ? (
+                        <>
+                          <Text style={{ color: c.border }}>|</Text>
                           <Text
                             style={{
-                              color: invColor,
+                              color: c.warning,
                               fontSize: 12,
                               fontWeight: "700",
                             }}
                           >
-                            Due: {inv.nextPaymentDate || "Not Set"}
+                            {remainingPeriods} {periodLabel} left
                           </Text>
-                          {inv.tenureYears > 0 ? (
-                            <>
-                              <Text style={{ color: c.border }}>|</Text>
-                              <Text
-                                style={{
-                                  color: c.warning,
-                                  fontSize: 12,
-                                  fontWeight: "700",
-                                }}
-                              >
-                                {remainingPeriods} {periodLabel} left
-                              </Text>
-                            </>
-                          ) : null}
-                        </View>
-                      </View>
+                        </>
+                      ) : null}
                     </View>
 
-                    {/* ROW 3: BOTTOM FINANCIALS */}
+                    {/* ROW 5: BOTTOM FINANCIALS */}
                     {inv.showReturns ? (
                       <View
                         style={{

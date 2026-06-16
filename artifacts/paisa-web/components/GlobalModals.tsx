@@ -237,6 +237,7 @@ function DeleteBtn({ onPress }: { onPress: () => void }) {
   );
 }
 
+// 🔥 UPDATED COLORS: Added 4 shades of Brown!
 const COLORS = [
   "#3b82f6",
   "#6366f1",
@@ -254,6 +255,10 @@ const COLORS = [
   "#14b8a6",
   "#06b6d4",
   "#0ea5e9",
+  "#8B4513",
+  "#A52A2A",
+  "#78350f",
+  "#b45309",
   "#64748b",
   "#334155",
   "#0f172a",
@@ -291,7 +296,6 @@ function ColorPicker({
   );
 }
 
-// 🔥 NEW: UNIVERSAL MIXED ICON RENDERER
 export function UniversalIcon({
   icon,
   size,
@@ -362,7 +366,6 @@ function IconPicker({
   );
 }
 
-// Returns FA5 safely if corrupted
 const getSafeFormIcon = (
   icon: string | undefined,
   type: "ACCOUNT" | "BUDGET" | "GOAL" | "INV",
@@ -377,7 +380,6 @@ const getSafeFormIcon = (
         : "FontAwesome5:bullseye";
 };
 
-// 🔥 100% BULLETPROOF ICONS USING MIXED FAMILIES (FontAwesome5 & Ionicons mostly)
 const ACCOUNT_ICONS = [
   "FontAwesome5:university",
   "FontAwesome5:credit-card",
@@ -391,9 +393,7 @@ const ACCOUNT_ICONS = [
   "FontAwesome5:briefcase",
 ];
 
-// 🔥 MASSIVELY EXPANDED BUDGET ICONS
 const BUDGET_ICONS = [
-  // Housing & Utilities
   "FontAwesome5:home",
   "FontAwesome5:bolt",
   "MaterialIcons:water-drop",
@@ -405,8 +405,6 @@ const BUDGET_ICONS = [
   "FontAwesome5:wrench",
   "FontAwesome5:couch",
   "FontAwesome5:bed",
-
-  // Food & Dining
   "Ionicons:restaurant",
   "FontAwesome5:shopping-cart",
   "FontAwesome5:shopping-bag",
@@ -417,8 +415,6 @@ const BUDGET_ICONS = [
   "FontAwesome5:glass-cheers",
   "FontAwesome5:cocktail",
   "MaterialIcons:local-grocery-store",
-
-  // Apparel & Personal Care
   "FontAwesome5:tshirt",
   "FontAwesome5:shoe-prints",
   "FontAwesome5:hat-cowboy",
@@ -427,8 +423,6 @@ const BUDGET_ICONS = [
   "MaterialIcons:dry-cleaning",
   "FontAwesome5:gem",
   "FontAwesome5:glasses",
-
-  // Transportation
   "FontAwesome5:car",
   "FontAwesome5:gas-pump",
   "FontAwesome5:bus",
@@ -439,8 +433,6 @@ const BUDGET_ICONS = [
   "FontAwesome5:bicycle",
   "FontAwesome5:plane",
   "FontAwesome5:ship",
-
-  // Family, Pets & Relationships
   "FontAwesome5:users",
   "FontAwesome5:heart",
   "FontAwesome5:baby-carriage",
@@ -449,8 +441,6 @@ const BUDGET_ICONS = [
   "FontAwesome5:bone",
   "FontAwesome5:cat",
   "FontAwesome5:dog",
-
-  // Entertainment & Subscriptions
   "FontAwesome5:music",
   "FontAwesome5:tv",
   "FontAwesome5:video",
@@ -460,8 +450,6 @@ const BUDGET_ICONS = [
   "FontAwesome5:gamepad",
   "FontAwesome5:dice",
   "FontAwesome5:gift",
-
-  // Health & Fitness
   "FontAwesome5:medkit",
   "FontAwesome5:pills",
   "FontAwesome5:stethoscope",
@@ -470,16 +458,12 @@ const BUDGET_ICONS = [
   "FontAwesome5:running",
   "FontAwesome5:tooth",
   "MaterialIcons:health-and-safety",
-
-  // Education & Work
   "FontAwesome5:book",
   "FontAwesome5:graduation-cap",
   "FontAwesome5:school",
   "FontAwesome5:chalkboard-teacher",
   "FontAwesome5:pencil-alt",
   "FontAwesome5:briefcase",
-
-  // Finance & Misc
   "FontAwesome5:exchange-alt",
   "FontAwesome5:shield-alt",
   "FontAwesome5:piggy-bank",
@@ -551,6 +535,7 @@ export function TxModal() {
   useEffect(() => {
     if (!app.isTxModalOpen) setHasWarnedBudget(false);
   }, [app.isTxModalOpen]);
+
   useEffect(() => {
     if (
       app.isTxModalOpen &&
@@ -1088,6 +1073,7 @@ export function GoalModal() {
 // ---- Investment Modal ----
 export function InvestmentModal() {
   const app = useApp();
+  const c = useAppColors();
   const form = app.invForm;
   const set = app.setInvForm;
 
@@ -1215,12 +1201,39 @@ export function InvestmentModal() {
           onChange={(v) => set((p) => ({ ...p, icon: v }) as any)}
         />
       </Field>
+
       <Field label="Theme Color">
         <ColorPicker
           value={(form as any).color ?? "#3b82f6"}
           onChange={(v) => set((p) => ({ ...p, color: v }) as any)}
         />
       </Field>
+
+      {/* 🔥 RESTORED TREAT AS EXPENSE TOGGLE */}
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          paddingVertical: 8,
+          marginBottom: 12,
+        }}
+      >
+        <View style={{ flex: 1, paddingRight: 16 }}>
+          <Text style={{ color: c.text, fontSize: 14, fontWeight: "600" }}>
+            Treat as Expense
+          </Text>
+          <Text style={{ color: c.textSecondary, fontSize: 11, marginTop: 2 }}>
+            Subtracts from Available to Budget
+          </Text>
+        </View>
+        <Switch
+          value={!!form.treatAsExpense}
+          onValueChange={(v) => set((p) => ({ ...p, treatAsExpense: v }))}
+          thumbColor="#fff"
+          trackColor={{ false: c.border, true: c.primary }}
+        />
+      </View>
 
       {isMaturity && (
         <Row>

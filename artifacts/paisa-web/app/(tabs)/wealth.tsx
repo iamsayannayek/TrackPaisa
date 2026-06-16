@@ -197,76 +197,81 @@ export default function WealthScreen() {
         </View>
 
         {/* 🔥 FIXED: FINANCIAL GOALS SECTION (Always visible header) */}
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 16,
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <MaterialCommunityIcons
-              name="bullseye-arrow"
-              size={20}
-              color={c.expense}
-            />
-            <Text
-              style={{
-                color: c.text,
-                fontSize: 16,
-                fontWeight: "800",
-                textTransform: "uppercase",
-                letterSpacing: 0.5,
-              }}
-            >
-              Financial Goals
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={() => app.openGoalModal()}
-            style={{
-              backgroundColor: c.primary,
-              borderRadius: 8,
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            <MaterialCommunityIcons name="plus" size={16} color="#fff" />
-            <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>
-              Add
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {app.goals.length === 0 ? (
+        <View style={{ marginBottom: 24 }}>
           <View
             style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
               alignItems: "center",
-              padding: 40,
-              backgroundColor: c.card,
-              borderRadius: c.radius,
-              borderWidth: 1,
-              borderColor: c.cardBorder,
-              marginBottom: 24,
+              marginBottom: 12,
             }}
           >
-            <MaterialCommunityIcons
-              name="target"
-              size={48}
-              color={c.mutedForeground}
-            />
-            <Text
-              style={{ color: c.mutedForeground, marginTop: 12, fontSize: 15 }}
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
             >
-              No goals set yet
-            </Text>
+              <MaterialCommunityIcons
+                name="bullseye-arrow"
+                size={20}
+                color={c.expense}
+              />
+              <Text
+                style={{
+                  color: c.text,
+                  fontSize: 16,
+                  fontWeight: "800",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                }}
+              >
+                Financial Goals
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => app.openGoalModal()}
+              style={{
+                backgroundColor: c.primary,
+                borderRadius: 8,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <MaterialCommunityIcons name="plus" size={16} color="#fff" />
+              <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>
+                Add
+              </Text>
+            </TouchableOpacity>
           </View>
-        ) : (
-          <View style={{ marginBottom: 24 }}>
+
+          {app.goals.length === 0 ? (
+            <View
+              style={{
+                alignItems: "center",
+                padding: 40,
+                backgroundColor: c.card,
+                borderRadius: c.radius,
+                borderWidth: 1,
+                borderColor: c.cardBorder,
+              }}
+            >
+              <MaterialCommunityIcons
+                name="target"
+                size={48}
+                color={c.mutedForeground}
+              />
+              <Text
+                style={{
+                  color: c.mutedForeground,
+                  marginTop: 12,
+                  fontSize: 15,
+                }}
+              >
+                No goals set yet
+              </Text>
+            </View>
+          ) : (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -475,8 +480,8 @@ export default function WealthScreen() {
                 );
               })}
             </ScrollView>
-          </View>
-        )}
+          )}
+        </View>
 
         {/* INVESTMENTS SECTION */}
         <View
@@ -911,92 +916,6 @@ export default function WealthScreen() {
                         </View>
                       </View>
                     )}
-
-                    {/* 🔥 NEW: THE MISSING ACTION TOGGLES (EDIT, SKIP, MARK PAID) */}
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "flex-end",
-                        gap: 8,
-                        marginTop: 12,
-                        paddingTop: 12,
-                        borderTopWidth: 1,
-                        borderTopColor: c.border,
-                      }}
-                    >
-                      <TouchableOpacity
-                        onPress={(e) => {
-                          e.stopPropagation?.();
-                          app.openInvestmentModal(inv);
-                        }}
-                        style={{
-                          padding: 8,
-                          backgroundColor: c.surfaceElevated,
-                          borderRadius: 8,
-                          justifyContent: "center",
-                          alignItems: "center",
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <MaterialCommunityIcons
-                          name="pencil"
-                          size={16}
-                          color={c.textSecondary}
-                        />
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        onPress={(e) => {
-                          e.stopPropagation?.();
-                          (app as any).skipInvestment?.(inv.id);
-                        }}
-                        style={{
-                          backgroundColor: c.surfaceElevated,
-                          borderRadius: 8,
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          justifyContent: "center",
-                          borderWidth: 1,
-                          borderColor: c.border,
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Text
-                          style={{
-                            color: c.textSecondary,
-                            fontWeight: "700",
-                            fontSize: 11,
-                          }}
-                        >
-                          Skip
-                        </Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        onPress={(e) => {
-                          e.stopPropagation?.();
-                          (app as any).markInvestmentPaid?.(inv.id);
-                        }}
-                        style={{
-                          backgroundColor: c.income + "22",
-                          borderRadius: 8,
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          justifyContent: "center",
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Text
-                          style={{
-                            color: c.income,
-                            fontWeight: "700",
-                            fontSize: 11,
-                          }}
-                        >
-                          Mark Paid
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
                   </TouchableOpacity>
                 );
               })}

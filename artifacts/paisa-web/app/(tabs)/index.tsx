@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { Image } from "react-native";
 import {
+  Image,
   Alert,
   Modal,
   ScrollView,
@@ -8,19 +8,47 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Dimensions,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { MaterialCommunityIcons } from "@expo/vector-icons"; // <-- PREMIUM ICONS
-import { useApp } from "@/context/AppContext";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import Svg, { Path, Defs, LinearGradient, Stop } from "react-native-svg";
+import { useApp, Account } from "@/context/AppContext";
 import { useAppColors } from "@/hooks/useAppColors";
 import { DonutChart, SavingsLineChart } from "@/components/Charts";
+import { UniversalIcon } from "@/components/GlobalModals"; // 🔥 IMPORTED UNIVERSAL ICON ENGINE
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const fmt = (n: number) =>
-  `₹${Math.abs(n).toLocaleString("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 0 })}`;
+  `₹${Math.abs(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 0 })}`;
+
 const fmtK = (n: number) => {
   if (Math.abs(n) >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
   if (Math.abs(n) >= 1000) return `₹${(n / 1000).toFixed(1)}k`;
   return fmt(n);
+};
+
+const fmtCompact = (n: number) => {
+  if (Math.abs(n) >= 1000) return `₹${(n / 1000).toFixed(1)}k`;
+  return fmt(n);
+};
+
+// 🔥 LEGACY MAPPER FOR CATEGORY ICONS
+const getSafeBudgetIcon = (iconStr: string | undefined): string => {
+  if (!iconStr) return "FontAwesome5:tag";
+  if (iconStr.includes(":")) return iconStr;
+
+  const map: Record<string, string> = {
+    "food-fork-drink": "Ionicons:restaurant",
+    coffee: "FontAwesome5:coffee",
+    home: "FontAwesome5:home",
+    cart: "FontAwesome5:shopping-cart",
+    car: "FontAwesome5:car",
+    airplane: "FontAwesome5:plane",
+  };
+  return map[iconStr] || `MaterialCommunityIcons:${iconStr}`;
 };
 
 function StatCard({
@@ -136,7 +164,6 @@ function HealthScoreCard({
 }) {
   const c = useAppColors();
 
-  // STATE 1: NOT ENOUGH DATA (Requires Income & Expenses, not just an account balance)
   if (!hasSufficientData) {
     return (
       <View
@@ -211,7 +238,6 @@ function HealthScoreCard({
     );
   }
 
-  // STATE 2/3: BASIC & ADVANCED ANALYSIS
   const color =
     score >= 75
       ? c.income
@@ -298,14 +324,7 @@ function HealthScoreCard({
         >
           Financial Health
         </Text>
-        <Text
-          style={{
-            color,
-            fontSize: 20,
-            fontWeight: "800",
-            marginTop: 2,
-          }}
-        >
+        <Text style={{ color, fontSize: 20, fontWeight: "800", marginTop: 2 }}>
           {label}
         </Text>
         <View
@@ -350,7 +369,6 @@ function AllCommitmentsView({ onClose }: { onClose: () => void }) {
       list = app.commitments.filter((c2) => c2.isSkipped);
     else if (filter === "UPCOMING")
       list = app.commitments.filter((c2) => !c2.isPaid && !c2.isSkipped);
-
     return list.sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
     );
@@ -358,14 +376,10 @@ function AllCommitmentsView({ onClose }: { onClose: () => void }) {
 
   const getAccName = (id?: string) =>
     app.accounts.find((a) => a.id === id)?.name ?? id ?? "";
-  const getDestName = (id?: string) => {
-    if (!id) return null;
-    return (
-      app.accounts.find((a) => a.id === id)?.name ??
-      app.investments.find((i) => i.id === id)?.name ??
-      null
-    );
-  };
+  const getDestName = (id?: string) =>
+    app.accounts.find((a) => a.id === id)?.name ??
+    app.investments.find((i) => i.id === id)?.name ??
+    null;
 
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
@@ -483,7 +497,7 @@ function AllCommitmentsView({ onClose }: { onClose: () => void }) {
                         : c.cardBorder,
                   }}
                 >
-                  {isOverSkipped ? (
+                  {isOverSkipped && (
                     <View
                       style={{
                         backgroundColor: "#ef444422",
@@ -502,8 +516,8 @@ function AllCommitmentsView({ onClose }: { onClose: () => void }) {
                         ⚠️ Skipped {destInv.name} {destInv.skippedCount} times!
                       </Text>
                     </View>
-                  ) : null}
-                  {isAccumulated ? (
+                  )}
+                  {isAccumulated && (
                     <View
                       style={{
                         backgroundColor: "#f59e0b22",
@@ -523,8 +537,7 @@ function AllCommitmentsView({ onClose }: { onClose: () => void }) {
                         premium(s).
                       </Text>
                     </View>
-                  ) : null}
-
+                  )}
                   <View
                     style={{
                       flexDirection: "row",
@@ -549,9 +562,9 @@ function AllCommitmentsView({ onClose }: { onClose: () => void }) {
                           marginTop: 3,
                         }}
                       >
-                        Due: {com.date} · From: {getAccName(com.sourceId)}
+                        Due: {com.date} · From: {getAccName(com.sourceId)}{" "}
                         {getDestName(com.destId)
-                          ? `  →  ${getDestName(com.destId)}`
+                          ? ` → ${getDestName(com.destId)}`
                           : ""}
                       </Text>
                     </View>
@@ -708,32 +721,22 @@ function AllTransactionsView({ onClose }: { onClose: () => void }) {
   >("ALL");
 
   const filtered = useMemo(() => {
-    // 1. Filter by current month
-    // 2. Sort by date descending (Newest first)
     const monthTxs = app.transactions
       .filter((t) => t.date.startsWith(app.currentMonth))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-    // 3. Filter by the active tab (ALL, INCOME, EXPENSE, TRANSFER)
     return filter === "ALL"
       ? monthTxs
       : monthTxs.filter((t) => t.type === filter);
   }, [app.transactions, app.currentMonth, filter]);
 
-  const getAccName = (id?: string) => {
-    if (!id) return "";
-    return (
-      app.accounts.find((a) => a.id === id)?.name ??
-      app.investments.find((i) => i.id === id)?.name ??
-      id
-    );
-  };
+  const getAccName = (id?: string) =>
+    app.accounts.find((a) => a.id === id)?.name ??
+    app.investments.find((i) => i.id === id)?.name ??
+    id ??
+    "";
 
-  const txColor = (type: string) => {
-    if (type === "INCOME") return c.income;
-    if (type === "EXPENSE") return c.expense;
-    return c.transfer;
-  };
+  const txColor = (type: string) =>
+    type === "INCOME" ? c.income : type === "EXPENSE" ? c.expense : c.transfer;
   const txSign = (type: string) =>
     type === "INCOME" ? "+" : type === "EXPENSE" ? "−" : "";
 
@@ -911,7 +914,6 @@ export default function DashboardScreen() {
   const [chartFilter, setChartFilter] = useState<"both" | "spent" | "saved">(
     "both",
   );
-
   const today = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   const monthTxs = useMemo(
@@ -923,7 +925,6 @@ export default function DashboardScreen() {
         ),
     [app.transactions, app.currentMonth],
   );
-
   const income = useMemo(
     () =>
       monthTxs
@@ -931,7 +932,6 @@ export default function DashboardScreen() {
         .reduce((s, t) => s + t.amount, 0),
     [monthTxs],
   );
-
   const expenses = useMemo(
     () =>
       monthTxs
@@ -939,8 +939,6 @@ export default function DashboardScreen() {
         .reduce((s, t) => s + t.amount, 0),
     [monthTxs],
   );
-
-  // GATEKEEPER: A user must have at least one transaction in the current month to be evaluated.
   const hasSufficientData = monthTxs.length > 0;
 
   const netWorth = useMemo(() => {
@@ -966,20 +964,20 @@ export default function DashboardScreen() {
 
   const recentTxs = useMemo(() => monthTxs.slice(0, 6), [monthTxs]);
 
+  // 🔥 HOISTED FOR TRANSACTIONS LIST
   const getAccName = (id?: string) =>
-    app.accounts.find((a) => a.id === id)?.name ?? id ?? "";
+    app.accounts.find((a) => a.id === id)?.name ??
+    app.investments.find((i) => i.id === id)?.name ??
+    id ??
+    "";
 
-  // --- Professional Financial Advisor Scoring Engine (Max 100) ---
   const healthScore = useMemo(() => {
     if (!hasSufficientData) return 0;
-
     let score = 0;
-
     if (income > 0) {
       const savingsRate = Math.max(0, income - expenses) / income;
-      score += Math.min(35, Math.round(savingsRate * 175)); // (0.2 * 175 = 35)
+      score += Math.min(35, Math.round(savingsRate * 175));
     }
-
     const monthBudgets = app.budgets.filter(
       (b) => b.month === app.currentMonth,
     );
@@ -996,7 +994,6 @@ export default function DashboardScreen() {
     } else {
       score += 10;
     }
-
     const monthCommits = app.commitments.filter((c2) =>
       c2.date.startsWith(app.currentMonth),
     );
@@ -1008,19 +1005,15 @@ export default function DashboardScreen() {
     } else {
       score += 10;
     }
-
     const activeInvestments = app.investments.filter((i) => i.autoSchedule);
-    if (activeInvestments.length > 0) {
+    if (activeInvestments.length > 0)
       score += Math.min(10, activeInvestments.length * 5);
-    }
-
     if (expenses > 0) {
       const bufferRatio = netWorth / expenses;
-      score += Math.min(10, Math.round(bufferRatio * 3.33)); // 3x expenses = 10 pts
+      score += Math.min(10, Math.round(bufferRatio * 3.33));
     } else if (netWorth > 0) {
       score += 10;
     }
-
     return Math.max(0, Math.min(100, score));
   }, [
     hasSufficientData,
@@ -1048,7 +1041,6 @@ export default function DashboardScreen() {
     "Nov",
     "Dec",
   ];
-
   const chartData = useMemo(() => {
     const monthsToShow = 5;
     const currentMonthParts = app.currentMonth.split("-");
@@ -1058,18 +1050,14 @@ export default function DashboardScreen() {
       Math.min(11, parseInt(currentMonthParts[1] ?? "1", 10) - 1),
     );
     const currentDate = new Date(currentYear, currentMonthIndex, 1);
-
     return Array.from({ length: monthsToShow }, (_, index) => {
       const monthDate = new Date(
         currentDate.getFullYear(),
         currentDate.getMonth() - (monthsToShow - 1 - index),
         1,
       );
-      const monthKey = `${monthDate.getFullYear()}-${String(
-        monthDate.getMonth() + 1,
-      ).padStart(2, "0")}`;
+      const monthKey = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}`;
       const monthLabel = monthNames[monthDate.getMonth()] ?? "Now";
-
       const monthTransactions = app.transactions.filter((t) =>
         t.date.startsWith(monthKey),
       );
@@ -1079,7 +1067,6 @@ export default function DashboardScreen() {
       const monthExpenses = monthTransactions
         .filter((t) => t.type === "EXPENSE")
         .reduce((sum, t) => sum + t.amount, 0);
-
       return {
         name: monthLabel,
         spent: monthExpenses,
@@ -1088,6 +1075,7 @@ export default function DashboardScreen() {
     });
   }, [app.transactions, app.currentMonth]);
 
+  // 🔥 UPGRADED: NOW INCLUDES ICON DATA
   const donutData = useMemo(() => {
     const monthBudgets = app.budgets.filter(
       (b) => b.month === app.currentMonth,
@@ -1097,9 +1085,10 @@ export default function DashboardScreen() {
         const spent = monthTxs
           .filter((t) => t.type === "EXPENSE" && t.category === b.category)
           .reduce((s, t) => s + t.amount, 0);
-        return { name: b.category, value: spent, color: b.color };
+        return { name: b.category, value: spent, color: b.color, icon: b.icon };
       })
-      .filter((d) => d.value > 0);
+      .filter((d) => d.value > 0)
+      .sort((a, b) => b.value - a.value);
   }, [app.budgets, monthTxs, app.currentMonth]);
 
   return (
@@ -1382,34 +1371,53 @@ export default function DashboardScreen() {
               By Category
             </Text>
             <DonutChart data={donutData} />
-            <View style={{ marginTop: 8, width: "100%" }}>
+
+            {/* 🔥 UPGRADED CATEGORY LEGEND WITH UNIVERSAL ICONS */}
+            <View style={{ marginTop: 12, width: "100%" }}>
               {donutData.slice(0, 4).map((d, i) => (
                 <View
                   key={i}
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
-                    gap: 6,
-                    marginBottom: 4,
+                    gap: 10,
+                    marginBottom: 8,
+                    backgroundColor: c.surfaceElevated,
+                    padding: 8,
+                    borderRadius: 12,
                   }}
                 >
                   <View
                     style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: d.color,
+                      width: 28,
+                      height: 28,
+                      borderRadius: 8,
+                      backgroundColor: d.color + "22",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
-                  />
+                  >
+                    <UniversalIcon
+                      icon={getSafeBudgetIcon(d.icon)}
+                      size={14}
+                      color={d.color}
+                    />
+                  </View>
                   <Text
                     style={{
-                      color: c.textSecondary,
-                      fontSize: 11,
-                      fontWeight: "500",
+                      color: c.text,
+                      fontSize: 13,
+                      fontWeight: "700",
+                      flex: 1,
                     }}
                     numberOfLines={1}
                   >
                     {d.name}
+                  </Text>
+                  <Text
+                    style={{ color: c.text, fontSize: 13, fontWeight: "800" }}
+                  >
+                    {fmtCompact(d.value)}
                   </Text>
                 </View>
               ))}
@@ -1527,7 +1535,6 @@ export default function DashboardScreen() {
                       </Text>
                     </View>
                   ) : null}
-
                   <View
                     style={{
                       flexDirection: "row",
@@ -1567,7 +1574,6 @@ export default function DashboardScreen() {
                       >
                         {fmt(com.amount)}
                       </Text>
-
                       {canUndo ? (
                         <TouchableOpacity
                           onPress={(e) => {
@@ -1738,6 +1744,8 @@ export default function DashboardScreen() {
                     >
                       {tx.note || tx.category}
                     </Text>
+
+                    {/* 🔥 UPGRADED: NOW SHOWS ACCOUNT NAME INSTEAD OF JUST CATEGORY */}
                     <Text
                       style={{
                         color: c.textSecondary,
@@ -1745,7 +1753,9 @@ export default function DashboardScreen() {
                         marginTop: 3,
                       }}
                     >
-                      {tx.date} · {tx.category}
+                      {tx.date} · {getAccName(tx.sourceId)}
+                      {tx.destId ? ` → ${getAccName(tx.destId)}` : ""} ·{" "}
+                      {tx.category}
                     </Text>
                   </View>
                   <Text

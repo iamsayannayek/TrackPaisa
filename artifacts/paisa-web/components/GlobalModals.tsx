@@ -646,7 +646,8 @@ export function TxModal() {
       </Field>
       <Row>
         <Col>
-          <Field label="From Account">
+          {/* 🔥 DYNAMIC LABEL: Shows "To Account" if Income, otherwise "From Account" */}
+          <Field label={form.type === "INCOME" ? "To Account" : "From Account"}>
             <SelectPicker
               options={accOptions}
               value={form.sourceId ?? ""}
@@ -1209,7 +1210,6 @@ export function InvestmentModal() {
         />
       </Field>
 
-      {/* 🔥 RESTORED TREAT AS EXPENSE TOGGLE */}
       <View
         style={{
           flexDirection: "row",
